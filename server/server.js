@@ -10,15 +10,22 @@ const {
 } = require("../server/utilities/dbConnector");
 
 const logger = require("../server/utilities/logger");
+const { grantAccess } = require('./access/grantAccess'); 
 
 const express = require("express");
-
-const app = express();
+const cors = require('cors');
 const port = process.env.PORT || 3000;
 
-app.set("json spaces", 2); // pretty-format logs!
+const app = express();
 app.use(express.json());
+app.use(cors());
+app.set("json spaces", 2); // pretty-format logs!
 
+
+
+
+
+// endpoint to query a document by id and display the XML
 app.get('/document/:id', async (req, res) => {
     try {
 
@@ -33,6 +40,18 @@ app.get('/document/:id', async (req, res) => {
     } catch (error) {
         logger.error(error);
         res.status(500).send('Error fetching document');
+    }
+});
+
+// endpoint to proactively share a document (without it being requested first)
+app.post('/proactive-share', async (req, res) => {
+    try {
+        const { documentId, targetUser } = req.body;
+        await grantAccess(documentId, targetUser, true); // call grantAccess with isProactive = true!
+        res.status(200).send('Document shared successfully');
+    } catch (error) {
+        logger.error(error);
+        res.status(500).send('Error in document sharing');
     }
 });
 

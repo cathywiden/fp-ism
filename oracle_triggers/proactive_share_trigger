@@ -1,0 +1,15 @@
+CREATE OR REPLACE TRIGGER proactive_share_trigger
+AFTER INSERT ON USER1.proactive_document_shares
+FOR EACH ROW
+DECLARE
+    v_xml CLOB;
+BEGIN
+    -- retrieve the XML of the document to be shared from the source table
+    SELECT XML INTO v_xml
+    FROM USER1."source_table"
+    WHERE DOCUMENT_ID = :new.DOCUMENT_ID;
+
+    -- insert the document into BCCONV's SHARED_DOCS
+    INSERT INTO USER2.SHARED_DOCS (DOCUMENT_ID, XML)
+    VALUES (:new.DOCUMENT_ID, v_xml);
+END;
