@@ -26,11 +26,16 @@ async function mintAccessToken(targetUserAddress, documentId, metadataURI) {
       metadataURI
     );
     await transaction.wait();
+
+    // return transaction hash to record in DB after minting a token
+    const transactionHash = transaction.hash;
     logger.info(
-      `Minted NFT for document ${documentId} and user ${targetUserAddress}`
+      `Minted NFT for document ${documentId} and user ${targetUserAddress}. Transaction hash: ${transactionHash}`
     );
+    return transactionHash;
   } catch (error) {
     logger.error(`Error minting access token: ${error.message}`);
+    return null; // Return null in case of error
   }
 }
 

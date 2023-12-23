@@ -66,21 +66,34 @@ async function grantAccess(documentId, targetUser, isProactive = false) {
 
     logger.info(`Document ${documentId} shared with ${targetUser}`);
 
+    // Mint NFT for access control
     try {
-      // mint NFT for access control
       const userWalletAddress = await getUserWalletAddress(targetUser);
       const metadataURI = `doc:${documentId}`; // PLACEHOLDER metadata URI -- document ID
 
-      // mint the access token
-      await mintAccessToken(userWalletAddress, documentId, metadataURI);
-      // logger.info(`Minted NFT for access to document ${documentId} for user ${targetUser}`);
+      const transactionHash = await mintAccessToken(
+        userWalletAddress,
+        documentId,
+        metadataURI
+      );
+      logger.info(`Token transaction hash: ${transactionHash}`);
+
+      if (transactionHash) {
+        // insert token minting transaction hash into the appropriate table
+        await connection.execute(
+          `UPDATE ${process.env.DB_USER}.${tableName} SET TOKEN_TRANSACTION_HASH = :transactionHash WHERE DOCUMENT_ID = :documentId AND TARGET_USER = :targetUser`,
+          [transactionHash, documentId, targetUser]
+        );
+        await connection.commit();
+      } else {
+        logger.error("Token minting failed. No transaction hash received.");
+      }
     } catch (error) {
       logger.error(`Error minting access token: ${error.message}`);
-      // error handling?
+      // error handling? rollback?
     }
   } catch (error) {
     logger.error(`Error in granting access: ${error.message}`);
-    throw error;
   } finally {
     if (connection) {
       await connection.close();
