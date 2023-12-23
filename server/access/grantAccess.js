@@ -18,7 +18,7 @@ async function getUserWalletAddress(username) {
       return result.rows[0].WALLET_ADDRESS;
     } else {
       logger.error(`Wallet address not found for user: ${username}`);
-      return null; // or handle this case as required
+      return null;
     }
   } catch (error) {
     logger.error(
@@ -67,15 +67,17 @@ async function grantAccess(documentId, targetUser, isProactive = false) {
     logger.info(`Document ${documentId} shared with ${targetUser}`);
 
     try {
-        // mint NFT for access control
-        const userWalletAddress = await getUserWalletAddress(targetUser);
-        const metadataURI = `doc:${documentId}`; // PLACEHOLDER metadata URI -- document ID
-        await mintAccessToken(userWalletAddress, documentId, metadataURI);
-        logger.info(`Minted token for access to document ${documentId} for user ${targetUser}`);
+      // mint NFT for access control
+      const userWalletAddress = await getUserWalletAddress(targetUser);
+      const metadataURI = `doc:${documentId}`; // PLACEHOLDER metadata URI -- document ID
+
+      // mint the access token
+      await mintAccessToken(userWalletAddress, documentId, metadataURI);
+      // logger.info(`Minted NFT for access to document ${documentId} for user ${targetUser}`);
     } catch (error) {
-        logger.error(`Error minting access token: ${error.message}`);
+      logger.error(`Error minting access token: ${error.message}`);
+      // error handling?
     }
-    
   } catch (error) {
     logger.error(`Error in granting access: ${error.message}`);
     throw error;
