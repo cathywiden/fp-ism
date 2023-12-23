@@ -1,7 +1,7 @@
 // server/smartContractUtils.js
 
 const { ethers } = require("ethers");
-const DocumentAccessControl = require("../artifacts/DocumentAccessControl.json");
+const DocumentAccessControl = require("../../blockchain/artifacts/contracts/DocumentAccessControl.sol/DocumentAccessControl.json");
 const logger = require("../utilities/logger"); 
 
 const contractAddress = process.env.CONTRACT_ADDRESS;
