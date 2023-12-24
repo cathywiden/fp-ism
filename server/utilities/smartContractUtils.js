@@ -19,6 +19,7 @@ const contract = new ethers.Contract(
 
 // mint NFT to represent access rights when sharing a document
 async function mintAccessToken(targetUserAddress, documentId, metadataURI) {
+  logger.info("Minting NFT: access data sent to smart contract");
   try {
     const transaction = await contract.mintAccess(
       targetUserAddress,
@@ -35,7 +36,7 @@ async function mintAccessToken(targetUserAddress, documentId, metadataURI) {
     return transactionHash;
   } catch (error) {
     logger.error(`Error minting access token: ${error.message}`);
-    return null; // Return null in case of error
+    return null; // return null in case of error
   }
 }
 
