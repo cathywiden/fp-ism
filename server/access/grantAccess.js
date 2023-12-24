@@ -2,15 +2,17 @@
 
 const { getConnection } = require("../utilities/dbConnector");
 const logger = require("../utilities/logger");
+require("dotenv").config({ path: "../.env" });
 
 const { mintAccessToken } = require("../utilities/smartContractUtils");
 
 async function getUserWalletAddress(username) {
   let connection;
   try {
-    connection = await getConnection();
+    // always use "user1" credentials for this query
+    connection = await getConnection("user1");
     const result = await connection.execute(
-      "SELECT wallet_address FROM CONVTEST.blockchain_user_wallet_mappings WHERE username = :username",
+      "SELECT wallet_address FROM ${process.env.DB_USER1}.blockchain_user_wallet_mappings WHERE username = :username",
       [username]
     );
 
@@ -35,7 +37,8 @@ async function getUserWalletAddress(username) {
 async function grantAccess(documentId, targetUser, isProactive = false) {
   let connection;
   try {
-    connection = await getConnection();
+    // always use "user1" credentials for this query
+    connection = await getConnection("user1");
 
     // determine the table based on the type of sharing (proactive or in response to a share request)
     const tableName = isProactive
@@ -44,7 +47,7 @@ async function grantAccess(documentId, targetUser, isProactive = false) {
 
     // check if the document is already shared with the target user
     const checkResult = await connection.execute(
-      `SELECT COUNT(*) AS count FROM ${process.env.DB_USER}.${tableName} WHERE DOCUMENT_ID = :documentId AND TARGET_USER = :targetUser`,
+      `SELECT COUNT(*) AS count FROM ${process.env.DB_USER1}.${tableName} WHERE DOCUMENT_ID = :documentId AND TARGET_USER = :targetUser`,
       [documentId, targetUser]
     );
 
@@ -57,7 +60,7 @@ async function grantAccess(documentId, targetUser, isProactive = false) {
 
     // insert into the appropriate table
     await connection.execute(
-      `INSERT INTO ${process.env.DB_USER}.${tableName} (DOCUMENT_ID, TARGET_USER) VALUES (:documentId, :targetUser)`,
+      `INSERT INTO ${process.env.DB_USER1}.${tableName} (DOCUMENT_ID, TARGET_USER) VALUES (:documentId, :targetUser)`,
       [documentId, targetUser]
     );
 
@@ -81,7 +84,7 @@ async function grantAccess(documentId, targetUser, isProactive = false) {
       if (transactionHash) {
         // insert token minting transaction hash into the appropriate table
         await connection.execute(
-          `UPDATE ${process.env.DB_USER}.${tableName} SET TOKEN_TRANSACTION_HASH = :transactionHash WHERE DOCUMENT_ID = :documentId AND TARGET_USER = :targetUser`,
+          `UPDATE ${process.env.DB_USER1}.${tableName} SET TOKEN_TRANSACTION_HASH = :transactionHash WHERE DOCUMENT_ID = :documentId AND TARGET_USER = :targetUser`,
           [transactionHash, documentId, targetUser]
         );
         await connection.commit();

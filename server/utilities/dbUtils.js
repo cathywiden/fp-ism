@@ -3,10 +3,10 @@
 const logger = require("./logger");
 const { getConnection } = require("./dbConnector");
 
-async function getDocumentById(document_id) {
+async function getDocumentById(document_id, userType) {
   let connection;
   try {
-    connection = await getConnection();
+    connection = await getConnection(userType);
     const result = await connection.execute(
       `SELECT DBMS_LOB.SUBSTR(XML, 500, 1) AS XML_SNIPPET FROM ${process.env.DB_TABLE} WHERE document_id = :id`,
       [document_id]
@@ -22,5 +22,8 @@ async function getDocumentById(document_id) {
     }
   }
 }
+
+module.exports = { getDocumentById };
+
 
 module.exports = { getDocumentById };

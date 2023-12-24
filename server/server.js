@@ -2,7 +2,7 @@
 
 require("dotenv").config({ path: "../.env" });
 
-const { getDocumentById } = require('../server/utilities/dbUtils');
+const { getDocumentById } = require("../server/utilities/dbUtils");
 
 const {
   initialize,
@@ -10,20 +10,18 @@ const {
 } = require("../server/utilities/dbConnector");
 
 const logger = require("../server/utilities/logger");
-const { grantAccess } = require('./access/grantAccess'); 
+const { grantAccess } = require("./access/grantAccess"); 
+/* const { revokeAccess } = require("./access/revokeAccess"); */
+const { checkSharedDocs, POLLING_INTERVAL } = require("./utilities/pollSharedDocs");
 
 const express = require("express");
-const cors = require('cors');
+const cors = require("cors");
 const port = process.env.PORT || 3000;
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 app.set("json spaces", 2); // pretty-format logs!
-
-
-
-
 
 // endpoint to query a document by id and display the XML
 app.get('/document/:id', async (req, res) => {
@@ -55,12 +53,25 @@ app.post('/proactive-share', async (req, res) => {
     }
 });
 
+/* // revoke access
+app.post('/revoke-access', async (req, res) => {
+  try {
+      const { documentId, reason } = req.body;
+      await revokeAccess(documentId, reason);
+      res.status(200).send(`Access revoked for document ${documentId} with reason: ${reason}`);
+  } catch (error) {
+      res.status(500).send(`Error revoking access: ${error.message}`);
+  }
+}); */
+
 async function startServer() {
   try {
       await initialize();
           logger.info("Database pool initialized successfully.");
     app.listen(port, () => {
       logger.info(`Server running on port ${port}`);
+       // Start polling
+  setInterval(checkSharedDocs, POLLING_INTERVAL);
     });
   } catch (error) {
     logger.error("Error starting the server:", error);
