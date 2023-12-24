@@ -24,7 +24,6 @@ async function checkSharedDocs() {
     const documentIds = result.rows.map((row) => row.DOCUMENT_ID.toString()); // Oracle returns document_ids as objects, therefore the toString conversion
 
     // display available documents
-    // display available documents
     if (documentIds.length > 0) {
       const documentIdsStr = documentIds.join(", ");
       logger.info(`The following documents are available: ${documentIdsStr}`);

@@ -11,10 +11,18 @@ async function getUserWalletAddress(username) {
   try {
     // always use "user1" credentials for this query
     connection = await getConnection("user1");
-    const result = await connection.execute(
-      "SELECT wallet_address FROM ${process.env.DB_USER1}.blockchain_user_wallet_mappings WHERE username = :username",
-      [username]
-    );
+
+    // in SQL query, concatenate process.env.DB_USER1 with the SQL query string!
+
+    /* const result = await connection.execute(
+    "SELECT wallet_address FROM ${process.env.DB_USER1}.blockchain_user_wallet_mappings WHERE username = :username",
+        [username]
+      ); */ // this way it won't work
+    const query =
+      "SELECT wallet_address FROM " +
+      process.env.DB_USER1 +
+      ".blockchain_user_wallet_mappings WHERE username = :username";
+    const result = await connection.execute(query, [username]);
 
     if (result.rows.length > 0) {
       return result.rows[0].WALLET_ADDRESS;

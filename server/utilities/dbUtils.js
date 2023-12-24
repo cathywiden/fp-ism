@@ -6,6 +6,7 @@ const { getConnection } = require("./dbConnector");
 async function getDocumentById(document_id, userType) {
   let connection;
   try {
+    // userType: user1 or user2
     connection = await getConnection(userType);
     const result = await connection.execute(
       `SELECT DBMS_LOB.SUBSTR(XML, 500, 1) AS XML_SNIPPET FROM ${process.env.DB_TABLE} WHERE document_id = :id`,
