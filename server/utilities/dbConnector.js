@@ -11,7 +11,7 @@ oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 let pools = {};
 
 async function initialize() {
-  pools['user1'] = await oracledb.createPool({
+  pools["user1"] = await oracledb.createPool({
     user: process.env.DB_USER1,
     password: process.env.DB_PASS1,
     connectString: connectString,
@@ -23,7 +23,7 @@ async function initialize() {
     queueTimeout: 60000,
   });
 
-  pools['user2'] = await oracledb.createPool({
+  pools["user2"] = await oracledb.createPool({
     user: process.env.DB_USER2,
     password: process.env.DB_PASS2,
     connectString: connectString,

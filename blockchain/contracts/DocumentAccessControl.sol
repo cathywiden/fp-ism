@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract DocumentAccessControl is ERC721, ERC721URIStorage, Ownable {
     uint256 private _tokenIds;
     mapping(uint256 => uint256) private _tokenExpiryTimes;
+    mapping(string => uint256) private _documentToTokenId;
 
     constructor(
         address initialOwner
@@ -25,14 +26,16 @@ contract DocumentAccessControl is ERC721, ERC721URIStorage, Ownable {
         uint256 newItemId = _tokenIds;
         _mint(user, newItemId);
 
-        // use documentId directly as part of metadataURI (placeholder)
+          // use documentId directly as part of metadataURI (placeholder)
         string memory fullMetadataURI = string(
             abi.encodePacked(metadataURI, documentId)
-        );
+        ); 
         _setTokenURI(newItemId, fullMetadataURI);
 
         // token to expire in 1 week (604800 seconds)
         _tokenExpiryTimes[newItemId] = block.timestamp + 604800;
+
+        _documentToTokenId[documentId] = newItemId;
 
         return newItemId;
     }
@@ -56,18 +59,19 @@ contract DocumentAccessControl is ERC721, ERC721URIStorage, Ownable {
     }
 
     // check if a user has access to a specific document
-    function hasAccess(
-        address user,
-        uint256 documentId
-    ) public view returns (bool) {
-        address owner = ownerOf(documentId);
+function hasAccess(
+    address user,
+    string memory documentId
+) public view returns (bool) {
+    uint256 tokenId = _documentToTokenId[documentId];
+    address owner = ownerOf(tokenId);
 
-        if (owner == address(0)) {
-            return false;
-        }
-
-        return owner == user && isTokenValid(documentId);
+    if (owner == address(0)) {
+        return false;
     }
+
+    return owner == user && isTokenValid(tokenId);
+}
 
     // check if a token is still valid
     function isTokenValid(uint256 tokenId) public view returns (bool) {

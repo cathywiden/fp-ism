@@ -2,20 +2,23 @@
 
 const logger = require("./logger");
 const { getConnection } = require("./dbConnector");
+require("dotenv").config({ path: "../.env" });
 
 async function getDocumentById(document_id, userType) {
   let connection;
   try {
-    // userType: user1 or user2
-    connection = await getConnection(userType);
-    const result = await connection.execute(
-      `SELECT DBMS_LOB.SUBSTR(XML, 500, 1) AS XML_SNIPPET FROM ${process.env.DB_TABLE} WHERE document_id = :id`,
-      [document_id]
+    logger.debug(
+      `getDocumentById called with document_id: ${document_id}, userType: ${userType}`
     );
+    connection = await getConnection(userType);
+    const query = `SELECT DBMS_LOB.SUBSTR(XML, 500, 1) AS XML_SNIPPET FROM ${process.env.DB_TABLE2} WHERE document_id = :id`;
+    logger.debug(`Executing query: ${query}`);
+    const result = await connection.execute(query, [document_id]);
 
+    logger.info("Query result:", result);
     return result.rows.length > 0 ? result.rows[0].XML_SNIPPET : null;
   } catch (error) {
-    logger.error(`Error fetching document: ${error.message}`);
+    logger.error(`Error in getDocumentById: ${error.message}`);
     throw error;
   } finally {
     if (connection) {
@@ -23,8 +26,5 @@ async function getDocumentById(document_id, userType) {
     }
   }
 }
-
-module.exports = { getDocumentById };
-
 
 module.exports = { getDocumentById };
