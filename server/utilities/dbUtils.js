@@ -11,7 +11,7 @@ async function getDocumentById(document_id, userType) {
       `getDocumentById called with document_id: ${document_id}, userType: ${userType}`
     );
     connection = await getConnection(userType);
-    const query = `SELECT DBMS_LOB.SUBSTR(XML, 500, 1) AS XML_SNIPPET FROM ${process.env.DB_TABLE2} WHERE document_id = :id`;
+    const query = `SELECT DBMS_LOB.SUBSTR(XML, 500, 1) AS XML_SNIPPET FROM ${process.env.DB_TABLE_SHARED_DOCS} WHERE document_id = :id`;
     logger.debug(`Executing query: ${query}`);
     const result = await connection.execute(query, [document_id]);
 

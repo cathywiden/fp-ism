@@ -6,7 +6,8 @@ const { isTokenValid } = require("../access/tokenValidation");
 const { getUserWalletAddress } = require("../access/extractWalletAddress");
 require("dotenv").config({ path: "../.env" });
 
-const POLLING_INTERVAL = 300000; // 5 minutes
+// const POLLING_INTERVAL = 300000; // 5 minutes
+const POLLING_INTERVAL = 20000; // for test only
 
 async function checkSharedDocs() {
   let connection;
@@ -14,14 +15,15 @@ async function checkSharedDocs() {
     // always using user2 credentials since SHARED_DOC is user2's table!
     connection = await getConnection("user2");
     const result = await connection.execute(
-      `SELECT document_id FROM ${process.env.DB_USER2}.SHARED_DOCS`
+      `SELECT document_id FROM ${process.env.DB_TABLE_SHARED_DOCS}`
     );
     const validDocs = [];
 
     // get wallet address for user2
     // would be better dynamically?
-    const userWalletAddress = await getUserWalletAddress("BCCONV");
-    console.log(userWalletAddress);
+    const userWalletAddress = await getUserWalletAddress(process.env.DB_USER2);
+
+    logger.info(userWalletAddress);
 
     for (const row of result.rows) {
       // Oracle returns document_ids as objects, therefore the toString conversion
