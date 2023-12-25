@@ -1,15 +1,21 @@
-CREATE OR REPLACE TRIGGER proactive_share_trigger
-AFTER INSERT ON USER1.proactive_document_shares
+CREATE OR REPLACE TRIGGER CONVTEST.TRG_share_proactive_v2
+AFTER INSERT ON CONVTEST.document_proactive_share
 FOR EACH ROW
 DECLARE
     v_xml CLOB;
+    v_mock_checksum RAW(512);
 BEGIN
     -- retrieve the XML of the document to be shared from the source table
     SELECT XML INTO v_xml
-    FROM USER1."source_table"
+    FROM CONVTEST."t_heap_eqiPaVxMTHqn$LEWCaD67w"
     WHERE DOCUMENT_ID = :new.DOCUMENT_ID;
 
-    -- insert the document into BCCONV's SHARED_DOCS
-    INSERT INTO USER2.SHARED_DOCS (DOCUMENT_ID, XML)
-    VALUES (:new.DOCUMENT_ID, v_xml);
+    -- compute mock CHECKSUM for XML content (first 500 characters)
+    SELECT RAWTOHEX(DBMS_CRYPTO.HASH(UTL_RAW.CAST_TO_RAW(DBMS_LOB.SUBSTR(v_xml, 500, 1)), DBMS_CRYPTO.HASH_SH256))
+    INTO v_mock_checksum
+    FROM DUAL;
+
+    -- insert the document into BCCONV's SHARED_DOCS with checksum and timestamps
+    INSERT INTO BCCONV.SHARED_DOCS (DOCUMENT_ID, XML, TOKEN_GRANTED, TOKEN_EXPIRY, CHECKSUM)
+    VALUES (:new.DOCUMENT_ID, v_xml, :new.SHARE_TIME, :new.TOKEN_EXPIRY, v_mock_checksum);
 END;
