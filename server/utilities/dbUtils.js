@@ -27,4 +27,20 @@ async function getDocumentById(document_id, userType) {
   }
 }
 
-module.exports = { getDocumentById };
+async function getExpiredTokens() {
+  let connection;
+  try {
+    connection = await getConnection("user1");
+    const result = await connection.execute(
+      `SELECT token_id FROM ${process.env.DB_TABLE_SHARED_DOCS} WHERE token_expiry < SYSTIMESTAMP`
+    );
+    return result.rows.map(row => row.token_id);
+  } catch (error) {
+    console.error(`Error fetching expired tokens: ${error.message}`);
+    return [];
+  } finally {
+    if (connection) await connection.close();
+  }
+}
+
+module.exports = { getDocumentById, getExpiredTokens };

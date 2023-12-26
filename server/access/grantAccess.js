@@ -1,8 +1,10 @@
 // server/access/grantAccess.js
 
-const { getConnection } = require("../utilities/dbConnector");
-const logger = require("../utilities/logger");
 require("dotenv").config({ path: "../.env" });
+
+const { getConnection } = require("../utilities/dbConnector");
+
+const logger = require("../utilities/logger");
 
 const { getUserWalletAddress } = require("../access/extractWalletAddress");
 
@@ -17,11 +19,11 @@ async function grantAccess(documentId, targetUser, isProactive = false) {
       : process.env.DB_TABLE_SHARE_ON_REQUEST;
 
     // check for existing share
-    const checkResult = await connection.execute(
-      `SELECT COUNT(*) AS count FROM ${tableName} WHERE DOCUMENT_ID = :documentId AND TARGET_USER = :targetUser`,
+    const sharedDocsCheck = await connection.execute(
+      `SELECT COUNT(*) AS count FROM BCCONV.SHARED_DOCS WHERE DOCUMENT_ID = :documentId AND TARGET_USER = :targetUser`,
       [documentId, targetUser]
     );
-    if (checkResult.rows[0].COUNT > 0) {
+    if (sharedDocsCheck.rows[0].COUNT > 0) {
       logger.info(`Document ${documentId} already shared with ${targetUser}`);
       return;
     }
