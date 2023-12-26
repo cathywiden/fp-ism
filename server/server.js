@@ -10,7 +10,8 @@ const { validateToken } = require("./access/tokenValidation");
 
 const logger = require("../server/utilities/logger");
 const { grantAccess } = require("./access/grantAccess");
-/* const { revokeAccess } = require("./access/revokeAccess"); */
+
+const { revokeAccess } = require("./access/revokeAccess");
 
 const {
   checkSharedDocs,
@@ -59,16 +60,17 @@ app.post("/proactive-share", async (req, res) => {
   }
 });
 
-/* // revoke access
-app.post("/revoke-access", async (req, res) => {
+// endpoint to revoke access
+app.post('/revoke-access', async (req, res) => {
+  const { documentId, reason } = req.body;
+  
   try {
-      const { documentId, reason } = req.body;
-      await revokeAccess(documentId, reason);
-      res.status(200).send(`Access revoked for document ${documentId} with reason: ${reason}`);
+    await revokeAccess(documentId, reason);
+    res.status(200).send('Access revoked');
   } catch (error) {
-      res.status(500).send(`Error revoking access: ${error.message}`);
+    res.status(500).send('Error revoking access');
   }
-}); */
+})
 
 async function startServer() {
   try {

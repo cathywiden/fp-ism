@@ -40,14 +40,29 @@ async function mintAccessToken(targetUserAddress, documentId, metadataURI) {
   }
 }
 
-// burn NFT to revoke access
+// Burn NFT to revoke access
 async function revokeAccessToken(tokenId) {
   try {
-    const transaction = await contract.revokeAccess(tokenId);
-    await transaction.wait();
+    // Token existence and validity check
+    const isTokenValid = await contract.isTokenValid(tokenId);
+    if (!isTokenValid) {
+      logger.info(`Token ID ${tokenId} is not valid or already revoked.`);
+      return;
+    }
+
+    // Manual gas limit setting
+    const gasLimit = ethers.utils.hexlify(1000000); 
+    const transaction = await contract.revokeAccess(tokenId, {
+      gasLimit: gasLimit
+    });
     logger.info(`Access revoked for token ID ${tokenId}`);
+   
+    const transactionHash = transaction.hash;
+    logger.info(`Revocation transaction hash: ${transactionHash}`);
+    return transactionHash;
   } catch (error) {
     logger.error(`Error revoking access token: ${error.message}`);
+    return null;
   }
 }
 

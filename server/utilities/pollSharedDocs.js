@@ -1,13 +1,14 @@
 // server/utilities/pollSharedDocs.js
 
+require("dotenv").config({ path: "../.env" });
 const logger = require("./logger");
 const { getConnection } = require("./dbConnector");
 const { isTokenValid } = require("../access/tokenValidation");
 const { getUserWalletAddress } = require("../access/extractWalletAddress");
-require("dotenv").config({ path: "../.env" });
+
 
 // const POLLING_INTERVAL = 300000; // 5 minutes
-const POLLING_INTERVAL = 20000; // for test only
+const POLLING_INTERVAL = 100000; // for test only
 
 async function checkSharedDocs() {
   let connection;
@@ -34,7 +35,7 @@ async function checkSharedDocs() {
       }
     }
 
-    logger.info(`Valid documents: ${validDocs.join(", ")}`);
+    logger.info(`Valid document(s): ${validDocs.join(", ")}`);
   } catch (error) {
     logger.error(`Database error: ${error.message}`);
   } finally {
