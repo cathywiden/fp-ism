@@ -5,7 +5,7 @@ const { createLogger, format, transports } = require("winston");
 const { combine, json, prettyPrint } = format;
 
 const logger = createLogger({
-  level: "info",
+  level: "debug",
   format: combine(json(), prettyPrint()),
   defaultMeta: { service: "database-service" },
   transports: [

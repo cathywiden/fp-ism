@@ -40,7 +40,7 @@ async function mintAccessToken(targetUserAddress, documentId, metadataURI) {
   }
 }
 
-// Burn NFT to revoke access
+// burn NFT to revoke access
 async function revokeAccessToken(tokenId) {
   try {
     // Token existence and validity check
@@ -50,7 +50,7 @@ async function revokeAccessToken(tokenId) {
       return;
     }
 
-    // Manual gas limit setting
+    // manual gas limit setting
     const gasLimit = ethers.utils.hexlify(1000000); 
     const transaction = await contract.revokeAccess(tokenId, {
       gasLimit: gasLimit
