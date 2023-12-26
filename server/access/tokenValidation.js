@@ -1,9 +1,8 @@
 // server/access/tokenValidation.js
 
 const { checkAccess } = require("../utilities/smartContractUtils");
-const { getUserWalletAddress } = require("./extractWalletAddress");
+const { getUserWalletAddress } = require("../utilities/extractWalletAddress");
 require("dotenv").config({ path: "../.env" });
-
 
 async function validateToken(req, res, next) {
   // extract user2's wallet address 

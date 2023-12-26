@@ -4,7 +4,7 @@ require("dotenv").config({ path: "../.env" });
 const logger = require("./logger");
 const { getConnection } = require("./dbConnector");
 const { isTokenValid } = require("../access/tokenValidation");
-const { getUserWalletAddress } = require("../access/extractWalletAddress");
+const { getUserWalletAddress } = require("./extractWalletAddress");
 
 
 // const POLLING_INTERVAL = 300000; // 5 minutes

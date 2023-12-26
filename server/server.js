@@ -13,6 +13,8 @@ const { grantAccess } = require("./access/grantAccess");
 
 const { revokeAccess } = require("./access/revokeAccess");
 
+const { requestDocumentAccess} = require("./access/requestAccess");/*  */
+
 const {
   checkSharedDocs,
   POLLING_INTERVAL,
@@ -61,16 +63,52 @@ app.post("/proactive-share", async (req, res) => {
 });
 
 // endpoint to revoke access
-app.post('/revoke-access', async (req, res) => {
+app.post("/revoke-access", async (req, res) => {
   const { documentId, reason } = req.body;
-  
+
   try {
     await revokeAccess(documentId, reason);
-    res.status(200).send('Access revoked');
+    res.status(200).send("Access revoked");
   } catch (error) {
-    res.status(500).send('Error revoking access');
+    res.status(500).send("Error revoking access");
   }
-})
+});
+
+// endpoint to request access
+app.post("/request-access", async (req, res) => {
+  try {
+    const { documentId, requester } = req.body;
+
+    await requestDocumentAccess(documentId, requester);
+
+    res.status(200).send("Request submitted");
+  } catch (error) {
+    logger.error(`Error in route handler: ${error.message}`);
+    res.status(500).send("Error submitting request");
+  }
+});
+
+// grant access endpoint
+app.post("/grant-access", async (req, res) => {
+  const { documentId, targetUser } = req.body;
+  try {
+    await grantAccess(documentId, targetUser);
+    res.status(200).send("Access granted");
+  } catch (error) {
+    res.status(500).send("Error granting access");
+  }
+});
+
+// deny access endpoint
+app.post("/deny-access", async (req, res) => {
+  const { documentId, reason } = req.body;
+  try {
+    await denyDocumentAccess(documentId, reason);
+    res.status(200).send("Access denied");
+  } catch (error) {
+    res.status(500).send("Error denying access");
+  }
+});
 
 async function startServer() {
   try {
@@ -78,7 +116,7 @@ async function startServer() {
     logger.info("Database pool initialized successfully.");
     app.listen(port, () => {
       logger.info(`Server running on port ${port}`);
-      // Start polling
+      // start polling
       setInterval(checkSharedDocs, POLLING_INTERVAL);
     });
   } catch (error) {

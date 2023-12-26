@@ -1,7 +1,7 @@
-// server/access/extractWalletAddress.js
+// server/utilities/extractWalletAddress.js
 
-const { getConnection } = require("../utilities/dbConnector");
-const logger = require("../utilities/logger");
+const { getConnection } = require("./dbConnector");
+const logger = require("./logger");
 require("dotenv").config({ path: "../.env" });
 
 async function getUserWalletAddress(username) {

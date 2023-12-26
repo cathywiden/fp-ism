@@ -6,7 +6,7 @@ const { getConnection } = require("../utilities/dbConnector");
 
 const logger = require("../utilities/logger");
 
-const { getUserWalletAddress } = require("../access/extractWalletAddress");
+const { getUserWalletAddress } = require("../utilities/extractWalletAddress");
 
 const { mintAccessToken } = require("../utilities/smartContractUtils");
 
