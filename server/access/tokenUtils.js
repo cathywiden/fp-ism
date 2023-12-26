@@ -8,7 +8,7 @@ async function getTokenId(documentId) {
   let connection;
   try {
     connection = await getConnection("user1");
-    const query = `SELECT ID FROM BCCONV.SHARED_DOCS WHERE document_id = :documentId`;
+    const query = `SELECT ID FROM ${process.env.DB_USER2}.${process.env.DB_TABLE_SHARED_DOCS} WHERE document_id = :documentId`;
     const result = await connection.execute(query, [documentId]);
 
     if (result.rows.length > 0) {

@@ -20,7 +20,7 @@ async function grantAccess(documentId, targetUser, isProactive = false) {
 
     // check for existing share
     const sharedDocsCheck = await connection.execute(
-      `SELECT COUNT(*) AS count FROM BCCONV.SHARED_DOCS WHERE DOCUMENT_ID = :documentId AND TARGET_USER = :targetUser`,
+      `SELECT COUNT(*) AS count FROM ${process.env.DB_USER2}.${process.env.DB_TABLE_SHARED_DOCS} WHERE DOCUMENT_ID = :documentId AND TARGET_USER = :targetUser`,
       [documentId, targetUser]
     );
     if (sharedDocsCheck.rows[0].COUNT > 0) {
