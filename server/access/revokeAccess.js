@@ -1,3 +1,5 @@
+// server/access/revokeAccess.js
+
 require("dotenv").config({ path: "../.env" });
 const logger = require("../utilities/logger");
 

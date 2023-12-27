@@ -1,4 +1,4 @@
-// server/smartContractUtils.js
+// server/utilities/smartContractUtils.js
 
 const { ethers } = require("ethers");
 const DocumentAccessControl = require("../../blockchain/artifacts/contracts/DocumentAccessControl.sol/DocumentAccessControl.json");
