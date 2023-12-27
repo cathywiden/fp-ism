@@ -7,57 +7,71 @@ const { getConnection } = require("../utilities/dbConnector");
 async function requestDocumentAccess(documentId, requester) {
   let connection;
   try {
-
-    // must pass in user1 here since user2 should have no rights whatsoever to figure out the contents of that table
     connection = await getConnection("user1");
-    /*const docCheckQuery = `SELECT COUNT(*) AS count FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SOURCE} WHERE DOCUMENT_ID = :documentId`;
+
+    //  querying heap table in steps:
+
+    // 1. get heap ID from T_DOCSTORE
+    const heapIdQuery = `SELECT HEAP_ID FROM T_DOCSTORE WHERE DOC_ID = :documentId`;
+    const heapIdResult = await connection.execute(heapIdQuery, [documentId]);
+
+    // 2. check if the document_id exists in T_DOCSTORE
+    if (heapIdResult.rows.length === 0) {
+      logger.info("Document not found in T_DOCSTORE");
+      return "Document ID not found";
+    }
+
+    const heapId = heapIdResult.rows[0].HEAP_ID;
+
+    // 3. construct heap table name
+    const heapTableName = `"t_heap_${heapId}"`;
+
+    // 4. does the dicument exist?
+    const docCheckQuery = `SELECT COUNT(*) AS count FROM ${heapTableName} WHERE DOCUMENT_ID = :documentId`;
 
     logger.debug(`Document ID check query: ${docCheckQuery}`);
+
     const docExistsResult = await connection.execute(docCheckQuery, [
       documentId,
     ]);
-    await connection.commit();
 
+    // check for actual document data (not ID)
     if (docExistsResult.rows[0].COUNT === 0) {
-      return "Document not found";
-    }*/
+      console.log("Document data not found");
+      return "Document data not found";
+    } else {
+      logger.debug(`Sending requestQuery`);
 
-    // need to comment out the document existence check part in order to be able to execute the request query! 
-    
-    // if I run the check first it will never execute the secodn query. Split into two functions?
+      // check if a request already exists
+      const existingRequestCheck = `SELECT COUNT(*) AS count FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARE_ON_REQUEST} WHERE DOCUMENT_ID = :documentId AND TARGET_USER = :requester`;
+      const existingRequestResult = await connection.execute(
+        existingRequestCheck,
+        [documentId, requester]
+      );
 
-    logger.debug(`Sending requestQuery`);
+      if (existingRequestResult.rows[0].COUNT > 0) {
+        logger.info(
+          `Request already exists for Document ID: ${documentId} by User: ${requester}`
+        );
+        return "Request already exists";
+      }
 
+      const requestQuery = `INSERT INTO ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARE_ON_REQUEST} (DOCUMENT_ID, TARGET_USER, REQUEST_TIME) VALUES (:documentId, :requester, :requestTime)`;
 
-     const requestQuery = `INSERT INTO ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARE_ON_REQUEST} (DOCUMENT_ID, TARGET_USER, REQUEST_TIME) VALUES (:documentId, :requester, :requestTime)`; 
-/* const requestQuery = `
-  INSERT INTO 
-     ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARE_ON_REQUEST}
-  (DOCUMENT_ID, TARGET_USER, REQUEST_TIME)  
-  VALUES 
-   (:documentId, :requester, :requestTime)
- WHERE EXISTS
-  (SELECT 1 
-   FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SOURCE}
-   WHERE DOCUMENT_ID = :documentId)  
-`;
-// is the WHERE clause in some way messing with the number of bind values?
- {
-  message: 'Error logging request: NJS-098: 4 positional bind values are required but 3 were provided',
-  level: 'error',
-  service: 'database-service' 
-}*/
+      logger.debug(`Document request logging query: ${requestQuery}`);
 
-    logger.debug(`Document request logging query: ${requestQuery}`);
+      const requestTime = Math.floor(Date.now() / 1000);
 
-    const requestTime = Math.floor(Date.now() / 1000);
-    await connection.execute(requestQuery, [
-      documentId,
-      requester,
-      requestTime,
-    ]);
-    await connection.commit();
-    return "Request logged successfully";
+      await connection.execute(requestQuery, [
+        documentId,
+        requester,
+        requestTime,
+      ]);
+      logger.debug(
+        `Document ${documentId} has recently been requested by ${requester}`
+      );
+      return await connection.commit();
+    }
   } catch (error) {
     logger.error("Error logging request: " + error.message);
     return "Error logging request";
