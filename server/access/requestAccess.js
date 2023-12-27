@@ -26,7 +26,7 @@ async function requestDocumentAccess(documentId, requester) {
     // 3. construct heap table name
     const heapTableName = `"t_heap_${heapId}"`;
 
-    // 4. does the dicument exist?
+    // 4. check if doc exists
     const docCheckQuery = `SELECT COUNT(*) AS count FROM ${heapTableName} WHERE DOCUMENT_ID = :documentId`;
 
     logger.debug(`Document ID check query: ${docCheckQuery}`);
