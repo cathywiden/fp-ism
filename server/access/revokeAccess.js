@@ -25,6 +25,7 @@ async function revokeAccess(documentId, reason) {
 
     const revokeQuery = `INSERT INTO ${process.env.DB_USER1}.${process.env.DB_TABLE_REVOKED} (DOCUMENT_ID, REVOKED_TIME, REVOKE_TRANSACTION_HASH, REVOCATION_REASON) VALUES (:documentId, :revokeTime, :transactionHash, :reason)`;
     logger.debug(`Revocation query: ${revokeQuery}`);
+    
     await connection.execute(revokeQuery, [
       documentId,
       revokeTime,
