@@ -47,7 +47,7 @@ async function grantAccess(documentId, targetUser, isProactive = false) {
 
     // insert into both the sharer's and the receiver's tables
     await connection.execute(
-      `INSERT INTO ${tableName} (DOCUMENT_ID, TARGET_USER, SHARE_TIME, TOKEN_TRANSACTION_HASH, TOKEN_EXPIRY) VALUES (:documentId, :targetUser, :shareTime, :transactionHash, :tokenExpiry)`,
+      `INSERT INTO ${tableName} (DOCUMENT_ID, TARGET_USER, SHARE_TIME, ACCESS_TRANSACTION_HASH, TOKEN_EXPIRY) VALUES (:documentId, :targetUser, :shareTime, :transactionHash, :tokenExpiry)`,
       [documentId, targetUser, shareTime, transactionHash, tokenExpiry]
     );
     await connection.commit();

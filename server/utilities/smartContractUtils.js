@@ -1,18 +1,18 @@
-// server/utilities/smartContractUtils.js
+// server/smartContractUtils.js
 
 const { ethers } = require("ethers");
 const DocumentAccessControl = require("../../blockchain/artifacts/contracts/DocumentAccessControl.sol/DocumentAccessControl.json");
 const logger = require("../utilities/logger");
 require("dotenv").config({ path: "../../.env" });
 
-const contractAddress = process.env.CONTRACT_ADDRESS;
+const DACAddress = process.env.CONTRACT_ADDRESS;
 
 const provider = new ethers.providers.JsonRpcProvider(process.env.INFURA_URL);
 console.log(process.env.INFURA_URL);
 const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 
-const contract = new ethers.Contract(
-  contractAddress,
+const DAC = new ethers.Contract(
+  DACAddress,
   DocumentAccessControl.abi,
   wallet
 );
@@ -21,7 +21,7 @@ const contract = new ethers.Contract(
 async function mintAccessToken(targetUserAddress, documentId, metadataURI) {
   logger.info("Minting NFT: access data sent to smart contract");
   try {
-    const transaction = await contract.mintAccess(
+    const transaction = await DAC.mintAccess(
       targetUserAddress,
       documentId.toString(),
       metadataURI
@@ -44,7 +44,7 @@ async function mintAccessToken(targetUserAddress, documentId, metadataURI) {
 async function revokeAccessToken(tokenId) {
   try {
     // Token existence and validity check
-    const isTokenValid = await contract.isTokenValid(tokenId);
+    const isTokenValid = await DAC.isTokenValid(tokenId);
     if (!isTokenValid) {
       logger.info(`Token ID ${tokenId} is not valid or already revoked.`);
       return;
@@ -52,7 +52,7 @@ async function revokeAccessToken(tokenId) {
 
     // manual gas limit setting
     const gasLimit = ethers.utils.hexlify(1000000); 
-    const transaction = await contract.revokeAccess(tokenId, {
+    const transaction = await DAC.revokeAccess(tokenId, {
       gasLimit: gasLimit
     });
     logger.info(`Access revoked for token ID ${tokenId}`);
@@ -69,7 +69,7 @@ async function revokeAccessToken(tokenId) {
 // check if a user has access to a document
 async function checkAccess(userAddress, documentId) {
   try {
-    const hasAccess = await contract.hasAccess(userAddress, documentId);
+    const hasAccess = await DAC.hasAccess(userAddress, documentId);
     return hasAccess;
   } catch (error) {
     logger.error(`Error checking access: ${error.message}`);
