@@ -5,64 +5,123 @@ const DocumentAccessControl = require("../../blockchain/artifacts/contracts/Docu
 const logger = require("../utilities/logger");
 require("dotenv").config({ path: "../../.env" });
 
-const DACAddress = process.env.CONTRACT_ADDRESS;
+const DACAddress = process.env.CONTRACT_ADDRESS_DAC;
 
 const provider = new ethers.providers.JsonRpcProvider(process.env.INFURA_URL);
 console.log(process.env.INFURA_URL);
 const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 
-const DAC = new ethers.Contract(
-  DACAddress,
-  DocumentAccessControl.abi,
-  wallet
-);
+const DAC = new ethers.Contract(DACAddress, DocumentAccessControl.abi, wallet);
 
 // mint NFT to represent access rights when sharing a document
-async function mintAccessToken(targetUserAddress, documentId, metadataURI) {
+async function mintAccessToken(
+  targetUserAddress,
+  documentId,
+  documentHash,
+  expiryInSeconds
+) {
   logger.info("Minting NFT: access data sent to smart contract");
   try {
+    logger.info(`Parameters: 
+      targetUserAddress: ${targetUserAddress}, 
+      documentId: ${documentId}, 
+      documentHash: ${documentHash}, 
+      expiryInSeconds: ${expiryInSeconds}`);
+
     const transaction = await DAC.mintAccess(
       targetUserAddress,
       documentId.toString(),
-      metadataURI
+      documentHash,
+      expiryInSeconds
     );
-    await transaction.wait();
+    const receipt = await transaction.wait();
 
-    // return transaction hash to record in DB after minting a token
-    const transactionHash = transaction.hash;
-    logger.info(
-      `Minted NFT for document ${documentId} and user ${targetUserAddress}. Transaction hash: ${transactionHash}`
+    logger.debug(`Transaction receipt: ${JSON.stringify(receipt)}`);
+
+    // massive debugging
+    // check if the AccessGranted event is present in the receipt
+    const tokenIdEvent = receipt.events.find(
+      (event) => event.event === "AccessGranted"
     );
-    return transactionHash;
+
+    logger.debug(`GrantAccess.js tokenIdEvent.args: ${tokenIdEvent.args}`);
+
+    if (!tokenIdEvent.args.tokenId) {
+      console.error("tokenId undefined in event args");
+    }
+
+    if (tokenIdEvent) {
+      logger.debug(
+        `SmartContractUtils.js AccessGranted event found: ${JSON.stringify(
+          tokenIdEvent
+        )}`
+      );
+
+      const tokenIdBigNumber = tokenIdEvent.args.tokenId;
+
+      logger.debug(
+        `SmartContractUtils.js Type of tokenIdBigNumber before conversion: ${typeof tokenIdBigNumber} - Value: ${tokenIdBigNumber}`
+      );
+
+      const tokenIdNumber = tokenIdBigNumber.toNumber();
+
+      /*const tokenIdNumber = 1111;*/
+
+      logger.debug(
+        `SmartContractUtils.js Type of tokenIdNumber after conversion: ${typeof tokenIdNumber} - Value: ${tokenIdNumber}`
+      );
+
+      return { transactionHash: transaction.hash, tokenId: tokenIdNumber };
+    } else {
+      logger.error(
+        `SmartContractUtils.js AccessGranted event not found in transaction receipt.`
+      );
+      return { transactionHash: transaction.hash, tokenId: null };
+    }
   } catch (error) {
-    logger.error(`Error minting access token: ${error.message}`);
-    return null; // return null in case of error
+    logger.error(
+      `SmartContractUtils.js Error minting access token: ${error.message}`
+    );
+    return { transactionHash: null, tokenId: null };
   }
 }
 
-// burn NFT to revoke access
-async function revokeAccessToken(tokenId) {
+async function revokeAccessToken(tokenId, reason) {
+  logger.info(
+    `SmartContractUtils.js Initiating revocation of access token. Token ID: ${tokenId}, Reason: ${reason}`
+  );
   try {
-    // Token existence and validity check
-    const isTokenValid = await DAC.isTokenValid(tokenId);
-    if (!isTokenValid) {
-      logger.info(`Token ID ${tokenId} is not valid or already revoked.`);
-      return;
-    }
+    // set a manual gas limit
+    const gasLimit = ethers.utils.hexlify(1000000);
+    logger.debug(`SmartContractUtils.js Gas limit set to: ${gasLimit}`);
 
-    // manual gas limit setting
-    const gasLimit = ethers.utils.hexlify(1000000); 
-    const transaction = await DAC.revokeAccess(tokenId, {
-      gasLimit: gasLimit
-    });
-    logger.info(`Access revoked for token ID ${tokenId}`);
-   
+    // revoke access
+    const transaction = await DAC.revokeAccess(tokenId, reason, { gasLimit });
+    logger.debug(
+      `SmartContractUtils.js Transaction response received: ${JSON.stringify(
+        transaction
+      )}`
+    );
+
+    // log tx hash
     const transactionHash = transaction.hash;
-    logger.info(`Revocation transaction hash: ${transactionHash}`);
+    logger.info(
+      `SmartContractUtils.js Access revoked for token ID ${tokenId}. Transaction hash: ${transactionHash}`
+    );
+
     return transactionHash;
   } catch (error) {
-    logger.error(`Error revoking access token: ${error.message}`);
-    return null;
+    logger.error(
+      `SmartContractUtils.js Error revoking access token: ${error.message}`
+    );
+    if (error.transaction) {
+      logger.error(
+        `SmartContractUtils.js Transaction data: ${JSON.stringify(
+          error.transaction
+        )}`
+      );
+    }
+    return null; // return null in case of error
   }
 }
 

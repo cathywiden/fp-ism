@@ -50,29 +50,34 @@ app.get("/document/:id", validateToken, async (req, res) => {
   }
 });
 
-// endpoint to proactively share a document (without it being requested first)
 app.post("/proactive-share", async (req, res) => {
+  logger.info(`Received request: ${JSON.stringify(req.body)}`);
   try {
-    const { documentId, targetUser } = req.body;
-    await grantAccess(documentId, targetUser, true); // call grantAccess with isProactive = true!
+    const { documentId, targetUser, documentHash, expiryInSeconds } = req.body;
+    logger.info(`Extracted Request Data: documentId=${documentId}, targetUser=${targetUser}, documentHash=${documentHash}, expiryInSeconds=${expiryInSeconds}`);
+    await grantAccess(documentId, targetUser, documentHash, expiryInSeconds, true);
     res.status(200).send("Document shared successfully");
   } catch (error) {
-    logger.error(error);
+    logger.error(`Error in proactive-share endpoint: ${error}`);
     res.status(500).send("Error in document sharing");
   }
 });
 
+
 // endpoint to revoke access
 app.post("/revoke-access", async (req, res) => {
   const { documentId, reason } = req.body;
+  logger.debug(`Revoke access endpoint called with documentId: ${documentId}, reason: ${reason}`);
 
   try {
     await revokeAccess(documentId, reason);
     res.status(200).send("Access revoked");
   } catch (error) {
+    logger.error(`Error in revoke-access endpoint: ${error.message}`);
     res.status(500).send("Error revoking access");
   }
 });
+
 
 // endpoint to request access
 app.post("/request-access", async (req, res) => {
