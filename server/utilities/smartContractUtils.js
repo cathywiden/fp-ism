@@ -65,8 +65,6 @@ async function mintAccessToken(
 
       const tokenIdNumber = tokenIdBigNumber.toNumber();
 
-      /*const tokenIdNumber = 1111;*/
-
       logger.debug(
         `SmartContractUtils.js Type of tokenIdNumber after conversion: ${typeof tokenIdNumber} - Value: ${tokenIdNumber}`
       );
@@ -103,7 +101,6 @@ async function revokeAccessToken(tokenId, reason) {
       )}`
     );
 
-    // log tx hash
     const transactionHash = transaction.hash;
     logger.info(
       `SmartContractUtils.js Access revoked for token ID ${tokenId}. Transaction hash: ${transactionHash}`
@@ -136,8 +133,32 @@ async function checkAccess(userAddress, documentId) {
   }
 }
 
+// request access to a document on the blockchain
+async function requestBlockchainAccess(documentId, requesterAddress) {
+  logger.info(`SmartContractUtils.js Initiating requestAccess for document with ID ${documentId}`);
+
+  try {
+    // set a manual gas limit
+    const gasLimit = ethers.utils.hexlify(1000000); 
+    logger.debug(`SmartContractUtils.js Gas limit set to: ${gasLimit}`);
+
+    // request access with specified gas limit
+    const transaction = await DAC.requestAccess(documentId, requesterAddress, { gasLimit });
+    logger.debug(`SmartContractUtils.js Transaction response received: ${JSON.stringify(transaction)}`);
+
+    const transactionHash = transaction.hash;
+    logger.info(`SmartContractUtils.js Access requested for user ${requesterAddress} and document ${documentId}. Transaction hash: ${transactionHash}`);
+    return transactionHash;
+  } catch (error) {
+    console.error(`Error requesting access on blockchain: ${error.message}`);
+    return null;
+  }
+}
+
+
 module.exports = {
   mintAccessToken,
   revokeAccessToken,
   checkAccess,
+  requestBlockchainAccess,
 };

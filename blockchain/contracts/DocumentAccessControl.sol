@@ -9,12 +9,36 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract DocumentAccessControl is ERC721, Ownable {
     constructor(address initialOwner) ERC721("DocumentAccessControl", "DAC") Ownable(initialOwner) {}
 
-    uint256 private _tokenIds;
     mapping(uint256 => uint256) private _tokenExpiryTimes;
     mapping(string => uint256) private _documentToTokenId;
     mapping(uint256 => string) private _tokenIdToDocumentId;
-
     mapping(uint256 => string) private _tokenHashes;
+    mapping(bytes32 => Request) private accessRequests;
+
+    uint256 private _tokenIds;
+    uint256 public constant DEFAULT_EXPIRATION_PERIOD = 604800; // 7 days in seconds to avoid system being cluttered by pending reqs
+    uint256 public constant SET_BACKUP_OWNER_TIMELOCK = 18000; // 5 hours timelock before changing to backupOwner
+    uint256 private backupOwnerTimelockExpiry;
+
+    address private pendingBackupOwner;
+    address private _backupOwner;
+
+    enum RequestStatus {
+        Pending,
+        Approved,
+        Rejected
+    }
+
+    // for incoming share requests
+    struct Request {
+        string documentId;
+        address requester;
+        address approver;
+        RequestStatus status;
+        uint256 requestTime;
+        uint256 expirationTime;
+        bool isInitialized; // track if the request is initialized
+    }
 
     // events declaration
     event AccessGranted(
@@ -31,15 +55,36 @@ contract DocumentAccessControl is ERC721, Ownable {
         uint256 timestamp,
         string reason
     );
+
     event TokenRenewed(uint256 indexed tokenId, uint256 newExpiryTime);
     event TokenExpired(uint256 tokenId);
+    event DocumentAccessed(address user, string documentId, bool accessGranted);
+    event AccessDenied(address user, string documentId);
+
+    event RequestReceived(
+        string documentId,
+        address requester,
+        RequestStatus status
+    );
+    event RequestUpdated(
+        string documentId,
+        address approver,
+        RequestStatus status
+    );
+
+    event BackupOwnerChanged(
+        address indexed previousBackupOwner,
+        address indexed newBackupOwner
+    );
 
     // MODIFIERS
+
     // check token existence
     modifier tokensExist() {
         require(_tokenIds > 0, "No tokens exist yet");
         _;
     }
+
     // restrict access to the owner or the specified user
     modifier onlyOwnerOrUser(address user) {
         require(msg.sender == owner() || msg.sender == user, "Not authorized");
@@ -56,7 +101,9 @@ contract DocumentAccessControl is ERC721, Ownable {
         _;
     }
 
-    // TOKEN CORE FUNCTIONALITY
+    //////////////////////////////
+    // TOKEN CORE FUNCTIONALITY //
+    //////////////////////////////
 
     // MINT NEW ACCESS TOKEN
     function mintAccess(
@@ -71,27 +118,27 @@ contract DocumentAccessControl is ERC721, Ownable {
         );
         require(
             expiryInSeconds > 0,
-            "ExbeforetokenIdpiry time must be greater than 0"
+            "ExbeforenewTokenIdpiry time must be greater than 0"
         );
 
         _tokenIds++;
-        uint256 tokenId = _tokenIds;
-        _mint(user, tokenId);
+        uint256 newTokenId = _tokenIds;
+        _mint(user, newTokenId);
 
-        _tokenExpiryTimes[tokenId] = block.timestamp + expiryInSeconds; // set custom expiry time
-        _documentToTokenId[documentId] = tokenId;
-        _tokenIdToDocumentId[tokenId] = documentId;
-        _setTokenHash(tokenId, documentHash);
+        _tokenExpiryTimes[newTokenId] = block.timestamp + expiryInSeconds; // set custom expiry time
+        _documentToTokenId[documentId] = newTokenId;
+        _tokenIdToDocumentId[newTokenId] = documentId;
+        _setTokenHash(newTokenId, documentHash);
 
         emit AccessGranted(
             user,
             documentId,
-            tokenId,
+            newTokenId,
             block.timestamp,
-            _tokenExpiryTimes[tokenId]
+            _tokenExpiryTimes[newTokenId]
         );
 
-        return tokenId;
+        return newTokenId;
     }
 
     // RENEW ACCESS FOR EXPIRED TOKEN
@@ -145,23 +192,9 @@ contract DocumentAccessControl is ERC721, Ownable {
         emit AccessRevoked(tokenOwner, docId, tokenId, block.timestamp, reason);
     }
 
-    // UTILS
-
-    // HAS ACCESS TO A SPECIFIC DOCUMENT
-    function hasAccess(
-        address user,
-        string memory documentId
-    ) public onlyOwnerOrUser(user) tokensExist returns (bool) {
-        uint256 tokenId = _documentToTokenId[documentId];
-
-        // check if token exists
-        if (_tokenExpiryTimes[tokenId] == 0) {
-            return false;
-        }
-
-        address owner = ownerOf(tokenId);
-        return owner == user && isTokenValid(tokenId);
-    }
+    ///////////
+    // UTILS //
+    ///////////
 
     // TOKEN VALIDITY CHECK
     function isTokenValid(uint256 tokenId) public returns (bool) {
@@ -170,6 +203,83 @@ contract DocumentAccessControl is ERC721, Ownable {
             emit TokenExpired(tokenId);
         }
         return isValid;
+    }
+
+    // HAS ACCESS
+    // has access to a specific document
+    function hasAccess(
+        address user,
+        string memory documentId
+    ) external onlyOwnerOrUser(user) tokensExist returns (bool) {
+        uint256 tokenId = _documentToTokenId[documentId];
+
+        // check if token exists
+        if (_tokenExpiryTimes[tokenId] == 0) {
+            // denied access
+            emit AccessDenied(user, documentId);
+            return false;
+        }
+
+        address owner = ownerOf(tokenId);
+
+        // evaluate access
+        bool hasValidAccess = owner == user && isTokenValid(tokenId);
+
+        // log result
+        emit DocumentAccessed(user, documentId, hasValidAccess);
+
+        return hasValidAccess;
+    }
+
+    // REQUEST ACCESS
+    function requestAccess(
+        string memory documentId,
+        address requester
+    ) external {
+        bytes32 requestKey = keccak256(abi.encodePacked(documentId, requester));
+        require(!accessRequests[requestKey].isInitialized, "Request exists");
+
+        accessRequests[requestKey] = Request({
+            documentId: documentId,
+            requester: requester,
+            approver: address(0),
+            status: RequestStatus.Pending,
+            requestTime: block.timestamp,
+            expirationTime: block.timestamp + DEFAULT_EXPIRATION_PERIOD,
+            isInitialized: true
+        });
+
+        emit RequestReceived(documentId, requester, RequestStatus.Pending);
+    }
+
+    // handler function for request status
+    function handleRequest(
+        string memory documentId,
+        address requester,
+        bool isApproved
+    ) public onlyOwner {
+        bytes32 requestKey = keccak256(abi.encodePacked(documentId, requester));
+
+        Request storage request = accessRequests[requestKey];
+
+        // check if the request exists and is not already handled
+        require(request.requester != address(0), "Request does not exist");
+        require(
+            request.status == RequestStatus.Pending,
+            "Request already handled"
+        );
+
+        // check for request expiration
+        require(block.timestamp <= request.expirationTime, "Request expired");
+
+        // set approver and update request status
+        request.approver = msg.sender;
+        request.status = isApproved
+            ? RequestStatus.Approved
+            : RequestStatus.Rejected;
+
+        // emit an event for request update
+        emit RequestUpdated(documentId, msg.sender, request.status);
     }
 
     // GET ALL TOKEN DATA
@@ -218,7 +328,34 @@ contract DocumentAccessControl is ERC721, Ownable {
         // logic won't execute due to modifier revert
     }
 
-    // OVERRIDE
+    // TRANSFER OWNERSHIP TO BACKUP ACC
+    function transferOwnershipToBackup() public {
+        require(
+            msg.sender == owner() || msg.sender == _backupOwner,
+            "Can't transfer ownership to yourself!"
+        );
+        // check if timelock passed
+        require(
+            block.timestamp >= backupOwnerTimelockExpiry,
+            "Timelock not expired"
+        );
+
+        // set pending address as new owner
+        transferOwnership(pendingBackupOwner);
+
+        // emit event
+        emit BackupOwnerChanged(owner(), pendingBackupOwner);
+    }
+
+    // helper function
+    function setPendingBackupOwner(address backupOwner) public onlyOwner {
+        pendingBackupOwner = backupOwner;
+        backupOwnerTimelockExpiry = block.timestamp + SET_BACKUP_OWNER_TIMELOCK;
+    }
+
+    ///////////////
+    // OVERRIDES //
+    ///////////////
 
     // override the tokenURI function to remove metadata URI functionality
     function tokenURI(
@@ -227,9 +364,11 @@ contract DocumentAccessControl is ERC721, Ownable {
         return _tokenHashes[tokenId];
     }
 
-    // disable renounceOwnership
+    // disable inherited renounceOwnership
     function renounceOwnership() public view override onlyOwner {
-        revert("Renouncing ownership is disabled");
+        revert(
+            "Renouncing ownership is disabled. Try transferring ownership to the backup owner instead."
+        );
     }
 
     function supportsInterface(
