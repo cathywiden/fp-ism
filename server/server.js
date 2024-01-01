@@ -13,7 +13,7 @@ const { grantAccess } = require("./access/grantAccess");
 
 const { revokeAccess } = require("./access/revokeAccess");
 
-const { requestDocumentAccess} = require("./access/requestAccess");/*  */
+const { requestAccess } = require("./access/requestAccess");
 
 const {
   checkSharedDocs,
@@ -54,8 +54,16 @@ app.post("/proactive-share", async (req, res) => {
   logger.info(`Received request: ${JSON.stringify(req.body)}`);
   try {
     const { documentId, targetUser, documentHash, expiryInSeconds } = req.body;
-    logger.info(`Extracted Request Data: documentId=${documentId}, targetUser=${targetUser}, documentHash=${documentHash}, expiryInSeconds=${expiryInSeconds}`);
-    await grantAccess(documentId, targetUser, documentHash, expiryInSeconds, true);
+    logger.info(
+      `Extracted Request Data: documentId=${documentId}, targetUser=${targetUser}, documentHash=${documentHash}, expiryInSeconds=${expiryInSeconds}`
+    );
+    await grantAccess(
+      documentId,
+      targetUser,
+      documentHash,
+      expiryInSeconds,
+      true
+    );
     res.status(200).send("Document shared successfully");
   } catch (error) {
     logger.error(`Error in proactive-share endpoint: ${error}`);
@@ -63,11 +71,12 @@ app.post("/proactive-share", async (req, res) => {
   }
 });
 
-
 // endpoint to revoke access
 app.post("/revoke-access", async (req, res) => {
   const { documentId, reason } = req.body;
-  logger.debug(`Revoke access endpoint called with documentId: ${documentId}, reason: ${reason}`);
+  logger.debug(
+    `Revoke access endpoint called with documentId: ${documentId}, reason: ${reason}`
+  );
 
   try {
     await revokeAccess(documentId, reason);
@@ -78,15 +87,18 @@ app.post("/revoke-access", async (req, res) => {
   }
 });
 
-
 // endpoint to request access
 app.post("/request-access", async (req, res) => {
+  const { documentId, requester } = req.body;
+
   try {
-    const { documentId, requester } = req.body;
+    const result = await requestAccess(documentId, requester);
 
-    await requestDocumentAccess(documentId, requester);
-
-    res.status(200).send("Request submitted");
+    if (result === "Request submitted") {
+      res.status(200).send(result);
+    } else {
+      res.status(400).send(result);
+    }
   } catch (error) {
     logger.error(`Error in route handler: ${error.message}`);
     res.status(500).send("Error submitting request");
