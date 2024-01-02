@@ -88,7 +88,7 @@ app.post("/revoke-access", async (req, res) => {
 });
 
 // endpoint to request access
-app.post("/request-access", async (req, res) => {
+/* app.post("/request-access", async (req, res) => {
   const { documentId, requester } = req.body;
 
   try {
@@ -103,7 +103,23 @@ app.post("/request-access", async (req, res) => {
     logger.error(`Error in route handler: ${error.message}`);
     res.status(500).send("Error submitting request");
   }
+}); */
+
+app.post("/request-access", async (req, res) => {
+  const { documentId, requester } = req.body;
+
+  console.log("Received documentId in endpoint:", documentId); 
+  console.log("Requester", requester);
+  try {
+      await requestAccess(documentId, requester);
+      
+      res.status(200).send("Request submitted");
+  } catch (error) {
+      logger.error(`Error in route handler: ${error.message}`);
+      res.status(500).send("Error submitting request");
+  }
 });
+
 
 // grant access endpoint
 app.post("/grant-access", async (req, res) => {

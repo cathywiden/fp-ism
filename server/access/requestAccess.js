@@ -1,29 +1,49 @@
+// server/utilities/requestAccess.js
+
 const logger = require("../utilities/logger");
 
 const { getUserWalletAddress } = require("../utilities/extractWalletAddress");
 
 const { getConnection } = require("../utilities/dbConnector");
+
 const { requestBlockchainAccess } = require("../utilities/smartContractUtils");
+
+const { connectToHeap } = require("../utilities/heapConnect");
 
 async function requestAccess(documentId, requester) {
   let connection;
   try {
     connection = await getConnection("user1");
 
-    const duplicateCheck = await checkDuplicates(connection, documentId, requester);
+    const duplicateCheck = await checkDuplicates(
+      connection,
+      documentId,
+      requester
+    );
     if (duplicateCheck === "No duplicates") {
       const userWalletAddress = await getUserWalletAddress(requester);
-      const transactionHash = await requestBlockchainAccess(documentId, userWalletAddress);
+      const transactionHash = await requestBlockchainAccess(
+        documentId,
+        userWalletAddress
+      );
 
-      logger.info(`requestAccess.js Submitted blockchain access request in tx ${transactionHash}`);
+      logger.info(
+        `requestAccess.js Submitted blockchain access request in tx ${transactionHash}`
+      );
 
       if (transactionHash) {
         const requestTime = Math.floor(Date.now() / 1000);
-        await logRequestDB(connection, documentId, requester, requestTime, transactionHash);
+        await logRequestDB(
+          connection,
+          documentId,
+          requester,
+          requestTime,
+          transactionHash
+        );
       }
       return "Request submitted";
     } else {
-      return duplicateCheck; 
+      return duplicateCheck;
     }
   } catch (error) {
     logger.error(error);
@@ -36,28 +56,15 @@ async function requestAccess(documentId, requester) {
 // SEPARATE DB LOGIC
 
 async function checkDuplicates(connection, documentId, requester) {
-  // querying heap table in steps:
+  const heapDetails = await connectToHeap(documentId);
+  const docCheckQuery = heapDetails.docCheckQuery;
 
-  // 1. get heap ID from T_DOCSTORE
-  const heapIdQuery = `SELECT HEAP_ID FROM T_DOCSTORE WHERE DOC_ID = :documentId`;
-  const heapIdResult = await connection.execute(heapIdQuery, [documentId]);
+  logger.debug(`docCheckQuery: ${docCheckQuery}`);
 
-  // 2. check if the document_id exists in T_DOCSTORE
-  if (heapIdResult.rows.length === 0) {
-    logger.info("Document not found in T_DOCSTORE");
-    return "Document ID not found";
-  }
-
-  const heapId = heapIdResult.rows[0].HEAP_ID;
-
-  // 3. construct heap table name
-  const heapTableName = `"t_heap_${heapId}"`;
-
-  // 4. check if doc exists
-  const docCheckQuery = `SELECT COUNT(*) AS count FROM ${heapTableName} WHERE DOCUMENT_ID = :documentId`;
-  logger.debug(`Document ID check query: ${docCheckQuery}`);
+  // execute document existance check
   const docExistsResult = await connection.execute(docCheckQuery, [documentId]);
 
+  // check if document exists in heap
   // check for actual document data (not ID)
   if (docExistsResult.rows[0].COUNT === 0) {
     console.log("Document data not found");
@@ -81,7 +88,13 @@ async function checkDuplicates(connection, documentId, requester) {
   return "No duplicates";
 }
 
-async function logRequestDB(connection, documentId, requester, requestTime, transactionHash) {
+async function logRequestDB(
+  connection,
+  documentId,
+  requester,
+  requestTime,
+  transactionHash
+) {
   try {
     const requestQuery = `INSERT INTO ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARE_ON_REQUEST} (DOCUMENT_ID, TARGET_USER, REQUEST_TIME, REQUEST_TRANSACTION_HASH) VALUES (:documentId, :requester, :requestTime, :transactionHash)`;
 
@@ -91,7 +104,7 @@ async function logRequestDB(connection, documentId, requester, requestTime, tran
       documentId,
       requester,
       requestTime,
-      transactionHash
+      transactionHash,
     ]);
     logger.debug(
       `Document ${documentId} has recently been requested by ${requester}`
