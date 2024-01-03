@@ -1,20 +1,17 @@
 //  server/server.js
 
 require("dotenv").config({ path: "../.env" });
-
 const { getDocumentById } = require("../server/utilities/dbUtils");
-
 const { initialize, close } = require("../server/utilities/dbConnector");
-
 const { validateToken } = require("./access/tokenValidation");
-
 const logger = require("../server/utilities/logger");
 const { grantAccess } = require("./access/grantAccess");
-
 const { revokeAccess } = require("./access/revokeAccess");
-
 const { requestAccess } = require("./access/requestAccess");
-
+const {
+  isTamperedWithInDB,
+  TAMPER_POLLING_INTERVAL,
+} = require("./utilities/logTampering");
 const {
   checkSharedDocs,
   POLLING_INTERVAL,
@@ -87,18 +84,15 @@ app.post("/revoke-access", async (req, res) => {
   }
 });
 
-// endpoint to request access
 app.post("/request-access", async (req, res) => {
   const { documentId, requester } = req.body;
 
+  logger.debug(`Received documentId in endpoint: ${documentId}`);
+  logger.debug(`Requester: ${requester}`);
   try {
-    const result = await requestAccess(documentId, requester);
+    await requestAccess(documentId, requester);
 
-    if (result === "Request submitted") {
-      res.status(200).send(result);
-    } else {
-      res.status(400).send(result);
-    }
+    res.status(200).send("Request submitted");
   } catch (error) {
     logger.error(`Error in route handler: ${error.message}`);
     res.status(500).send("Error submitting request");
@@ -135,6 +129,7 @@ async function startServer() {
       logger.info(`Server running on port ${port}`);
       // start polling
       setInterval(checkSharedDocs, POLLING_INTERVAL);
+      setInterval(isTamperedWithInDB, TAMPER_POLLING_INTERVAL);
     });
   } catch (error) {
     logger.error("Error starting the server:", error);

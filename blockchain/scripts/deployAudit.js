@@ -1,4 +1,4 @@
-// blockchain/scripts/deployDAC.js
+// blockchain/scripts/deployAudit.js
 
 const hre = require("hardhat");
 
@@ -7,10 +7,9 @@ async function main() {
 
   console.log("Deploying contracts with the account:", deployer.address);
 
-  const Contract = await hre.ethers.getContractFactory("DocumentAccessControl");
+  const Contract = await hre.ethers.getContractFactory("Audit");
 
-  // deployer's address as the initial owner
-  const contract = await Contract.deploy(deployer.address);
+  const contract = await Contract.deploy();
 
   await contract.deployed();
 
