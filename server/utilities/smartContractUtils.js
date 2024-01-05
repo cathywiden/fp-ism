@@ -1,17 +1,24 @@
 // server/smartContractUtils.js
 
 const { ethers } = require("ethers");
+
+// import contract ABIs
 const DocumentAccessControl = require("../../blockchain/artifacts/contracts/DocumentAccessControl.sol/DocumentAccessControl.json");
-const logger = require("../utilities/logger");
+const Audit = require("../../blockchain/artifacts/contracts/Audit.sol/Audit.json");
+
+const logger = require("./logger");
 require("dotenv").config({ path: "../../.env" });
 
 const DACAddress = process.env.CONTRACT_ADDRESS_DAC;
+
+const auditAddress = process.env.CONTRACT_ADDRESS_AUDIT;
 
 const provider = new ethers.providers.JsonRpcProvider(process.env.INFURA_URL);
 console.log(process.env.INFURA_URL);
 const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 
 const DAC = new ethers.Contract(DACAddress, DocumentAccessControl.abi, wallet);
+const AuditContract = new ethers.Contract(auditAddress, Audit.abi, wallet);
 
 // mint NFT to represent access rights when sharing a document
 async function mintAccessToken(
@@ -30,7 +37,7 @@ async function mintAccessToken(
 
     const transaction = await DAC.mintAccess(
       targetUserAddress,
-      documentId.toString(),
+      documentId,
       documentHash,
       expiryInSeconds
     );
@@ -135,19 +142,29 @@ async function checkAccess(userAddress, documentId) {
 
 // request access to a document on the blockchain
 async function requestBlockchainAccess(documentId, requesterAddress) {
-  logger.info(`SmartContractUtils.js Initiating requestAccess for document with ID ${documentId}`);
+  logger.info(
+    `SmartContractUtils.js Initiating requestAccess for document with ID ${documentId}`
+  );
 
   try {
     // set a manual gas limit
-    const gasLimit = ethers.utils.hexlify(1000000); 
+    const gasLimit = ethers.utils.hexlify(1000000);
     logger.debug(`SmartContractUtils.js Gas limit set to: ${gasLimit}`);
 
     // request access with specified gas limit
-    const transaction = await DAC.requestAccess(documentId, requesterAddress, { gasLimit });
-    logger.debug(`SmartContractUtils.js Transaction response received: ${JSON.stringify(transaction)}`);
+    const transaction = await DAC.requestAccess(documentId, requesterAddress, {
+      gasLimit,
+    });
+    logger.debug(
+      `SmartContractUtils.js Transaction response received: ${JSON.stringify(
+        transaction
+      )}`
+    );
 
     const transactionHash = transaction.hash;
-    logger.info(`SmartContractUtils.js Access requested for user ${requesterAddress} and document ${documentId}. Transaction hash: ${transactionHash}`);
+    logger.info(
+      `SmartContractUtils.js Access requested for user ${requesterAddress} and document ${documentId}. Transaction hash: ${transactionHash}`
+    );
     return transactionHash;
   } catch (error) {
     console.error(`Error requesting access on blockchain: ${error.message}`);
@@ -155,10 +172,50 @@ async function requestBlockchainAccess(documentId, requesterAddress) {
   }
 }
 
+async function handleDenyRequest(documentId, targetUser, reason) {
+  try {
+    const gasLimit = ethers.utils.hexlify(1000000);
+    logger.debug(`Gas limit set to: ${gasLimit}`);
+
+    const transaction = await DAC.denyRequest(documentId, targetUser, reason, {
+      gasLimit,
+    });
+    const transactionHash = transaction.hash;
+    logger.info(
+      `Access denied for user ${targetUser} and document ${documentId}. Transaction hash: ${transactionHash}`
+    );
+    return transactionHash;
+  } catch (error) {
+    logger.error(`Error in handleDenyRequest: ${error.message}`);
+    throw error; 
+  }
+}
+
+// logs tampering of a document to the blockchain
+async function logTampering(documentId, oldHash, newHash) {
+  try {
+    logger.info(`Logging tampering for document: ${documentId}`);
+    const transaction = await AuditContract.logTampering(
+      documentId,
+      oldHash,
+      newHash
+    );
+
+    // return the transaction hash
+    await transaction.wait();
+    logger.debug(`Transaction hash: ${transaction.hash}`);
+    return transaction.hash;
+  } catch (error) {
+    logger.error(`Error logging tampering: ${error.message}`);
+    return null;
+  }
+}
 
 module.exports = {
   mintAccessToken,
   revokeAccessToken,
   checkAccess,
   requestBlockchainAccess,
+  handleDenyRequest,
+  logTampering,
 };

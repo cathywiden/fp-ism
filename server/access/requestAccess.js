@@ -1,21 +1,18 @@
 // server/utilities/requestAccess.js
 
 const logger = require("../utilities/logger");
-
 const { getUserWalletAddress } = require("../utilities/extractWalletAddress");
-
 const { getConnection } = require("../utilities/dbConnector");
-
 const { requestBlockchainAccess } = require("../utilities/smartContractUtils");
 
-const { connectToHeap } = require("../utilities/heapConnect");
+const { logRequestDB, doesRequestExist } =require("../utilities/dbUtils");
 
 async function requestAccess(documentId, requester) {
   let connection;
   try {
     connection = await getConnection("user1");
 
-    const duplicateCheck = await checkDuplicates(
+    const duplicateCheck = await doesRequestExist(
       connection,
       documentId,
       requester
@@ -28,7 +25,7 @@ async function requestAccess(documentId, requester) {
       );
 
       logger.info(
-        `requestAccess.js Submitted blockchain access request in tx ${transactionHash}`
+        `requestAccess.js Submitted blockchain access request in transaction ${transactionHash}`
       );
 
       if (transactionHash) {
@@ -53,68 +50,6 @@ async function requestAccess(documentId, requester) {
   }
 }
 
-// SEPARATE DB LOGIC
 
-async function checkDuplicates(connection, documentId, requester) {
-  const heapDetails = await connectToHeap(documentId);
-  const docCheckQuery = heapDetails.docCheckQuery;
-
-  logger.debug(`docCheckQuery: ${docCheckQuery}`);
-
-  // execute document existance check
-  const docExistsResult = await connection.execute(docCheckQuery, [documentId]);
-
-  // check if document exists in heap
-  // check for actual document data (not ID)
-  if (docExistsResult.rows[0].COUNT === 0) {
-    console.log("Document data not found");
-    return "Document data not found";
-  } else {
-    // check if a request already exists
-    const existingRequestCheck = `SELECT COUNT(*) AS count FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARE_ON_REQUEST} WHERE DOCUMENT_ID = :documentId AND TARGET_USER = :requester`;
-    const existingRequestResult = await connection.execute(
-      existingRequestCheck,
-      [documentId, requester]
-    );
-
-    if (existingRequestResult.rows[0].COUNT > 0) {
-      logger.info(
-        `Request already exists for Document ID: ${documentId} by User: ${requester}`
-      );
-      return "Request already exists";
-    }
-  }
-
-  return "No duplicates";
-}
-
-async function logRequestDB(
-  connection,
-  documentId,
-  requester,
-  requestTime,
-  transactionHash
-) {
-  try {
-    const requestQuery = `INSERT INTO ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARE_ON_REQUEST} (DOCUMENT_ID, TARGET_USER, REQUEST_TIME, REQUEST_TRANSACTION_HASH) VALUES (:documentId, :requester, :requestTime, :transactionHash)`;
-
-    logger.debug(`Document request logging query: ${requestQuery}`);
-
-    await connection.execute(requestQuery, [
-      documentId,
-      requester,
-      requestTime,
-      transactionHash,
-    ]);
-    logger.debug(
-      `Document ${documentId} has recently been requested by ${requester}`
-    );
-
-    return await connection.commit();
-  } catch (error) {
-    logger.error("Error logging request: " + error.message);
-    return "Error logging request";
-  }
-}
 
 module.exports = { requestAccess };

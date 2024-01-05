@@ -7,7 +7,7 @@ const { getConnection } = require("../utilities/dbConnector");
 const { revokeAccessToken } = require("../utilities/smartContractUtils");
 const { getTokenId } = require("./tokenUtils");
 
-async function revokeAccess(documentId, reason) {
+async function revokeAccess(documentId, reason, targetUser) {
   let connection;
   try {
     connection = await getConnection("user1");
@@ -15,6 +15,8 @@ async function revokeAccess(documentId, reason) {
     logger.debug("revokeAccess.js Starting revokeAccess function");
 
     const tokenId = await getTokenId(documentId);
+
+    console.log(reason);
 
     logger.info(`revokeAccess.js Token ID for revocation: ${tokenId}`);
 
@@ -31,15 +33,17 @@ async function revokeAccess(documentId, reason) {
       `revokeAccess.js Transaction hash for revocation: ${transactionHash}`
     );
 
-    const revokeQuery = `INSERT INTO ${process.env.DB_USER1}.${process.env.DB_TABLE_REVOKED} (DOCUMENT_ID, REVOKED_TIME, REVOKE_TRANSACTION_HASH, REVOCATION_REASON) VALUES (:documentId, :revokeTime, :transactionHash, :reason)`;
-    logger.debug(`revokeAccess.js Revocation query: ${revokeQuery}`);
+    // update the table based on tokenId
+    const revokeQuery = `UPDATE ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} SET REV_TS = :revokeTime, REV_TX_HASH = :transactionHash, REASON = :reason, STATUS = 'revoked' WHERE TOKEN_ID = :tokenId`;
 
-    await connection.execute(revokeQuery, [
-      documentId,
-      revokeTime,
-      transactionHash,
-      reason,
-    ]);
+    logger.debug(`revokeAccess.js Revoke query: ${revokeQuery}`);
+
+    await connection.execute(revokeQuery, {
+      tokenId: tokenId,
+      revokeTime: revokeTime,
+      transactionHash: transactionHash,
+      reason: reason,
+    });
 
     const deleteQuery = `DELETE FROM ${process.env.DB_USER2}.${process.env.DB_TABLE_SHARED_DOCS} WHERE DOCUMENT_ID = :documentId`;
     logger.debug(`revokeAccess.js Delete query: ${deleteQuery}`);

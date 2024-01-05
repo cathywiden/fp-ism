@@ -7,13 +7,15 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract DocumentAccessControl is ERC721, Ownable {
-    constructor(address initialOwner) ERC721("DocumentAccessControl", "DAC") Ownable(initialOwner) {}
+    constructor(
+        address initialOwner
+    ) ERC721("DocumentAccessControl", "DAC") Ownable(initialOwner) {}
 
     mapping(uint256 => uint256) private _tokenExpiryTimes;
     mapping(string => uint256) private _documentToTokenId;
     mapping(uint256 => string) private _tokenIdToDocumentId;
     mapping(uint256 => string) private _tokenHashes;
-    mapping(bytes32 => Request) private accessRequests;
+    mapping(bytes32 => Request) public accessRequests;
 
     uint256 private _tokenIds;
     uint256 public constant DEFAULT_EXPIRATION_PERIOD = 604800; // 7 days in seconds to avoid system being cluttered by pending reqs
@@ -37,7 +39,7 @@ contract DocumentAccessControl is ERC721, Ownable {
         RequestStatus status;
         uint256 requestTime;
         uint256 expirationTime;
-        bool isInitialized; // track if the request is initialized
+        bool isInitialized;
     }
 
     // events declaration
@@ -59,7 +61,7 @@ contract DocumentAccessControl is ERC721, Ownable {
     event TokenRenewed(uint256 indexed tokenId, uint256 newExpiryTime);
     event TokenExpired(uint256 tokenId);
     event DocumentAccessed(address user, string documentId, bool accessGranted);
-    event AccessDenied(address user, string documentId);
+    event AccessDenied(address user, string documentId, string reason);
 
     event RequestReceived(
         string documentId,
@@ -215,11 +217,14 @@ contract DocumentAccessControl is ERC721, Ownable {
 
         // check if token exists
         if (_tokenExpiryTimes[tokenId] == 0) {
-            // denied access
-            emit AccessDenied(user, documentId);
+            // denied access, you can provide a standard reason or customize it
+            emit AccessDenied(
+                user,
+                documentId,
+                "Access token does not exist or is expired"
+            );
             return false;
         }
-
         address owner = ownerOf(tokenId);
 
         // evaluate access
@@ -252,34 +257,25 @@ contract DocumentAccessControl is ERC721, Ownable {
         emit RequestReceived(documentId, requester, RequestStatus.Pending);
     }
 
-    // handler function for request status
-    function handleRequest(
+    // DENY REQUEST
+    function denyRequest(
         string memory documentId,
         address requester,
-        bool isApproved
-    ) public onlyOwner {
+        string memory reason
+    ) external onlyOwner {
         bytes32 requestKey = keccak256(abi.encodePacked(documentId, requester));
-
         Request storage request = accessRequests[requestKey];
 
-        // check if the request exists and is not already handled
-        require(request.requester != address(0), "Request does not exist");
+        require(request.isInitialized, "Request does not exist");
         require(
             request.status == RequestStatus.Pending,
             "Request already handled"
         );
 
-        // check for request expiration
-        require(block.timestamp <= request.expirationTime, "Request expired");
-
-        // set approver and update request status
+        request.status = RequestStatus.Rejected;
         request.approver = msg.sender;
-        request.status = isApproved
-            ? RequestStatus.Approved
-            : RequestStatus.Rejected;
 
-        // emit an event for request update
-        emit RequestUpdated(documentId, msg.sender, request.status);
+        emit AccessDenied(requester, documentId, reason);
     }
 
     // GET ALL TOKEN DATA

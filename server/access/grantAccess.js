@@ -10,32 +10,32 @@ const { getUserWalletAddress } = require("../utilities/extractWalletAddress");
 
 const { mintAccessToken } = require("../utilities/smartContractUtils");
 
+const { executeBlockchainMockChecksum, checkIfAlreadyShared, checkForExistingRequest, updateExistingRequest, logGrantInDB } = require("../utilities/dbUtils");
+
 async function grantAccess(
   documentId,
   targetUser,
   documentHash,
-  expiryInSeconds,
-  isProactive = false
+  expiryInSeconds
 ) {
   let connection;
   try {
     connection = await getConnection("user1");
-    const tableName = isProactive
-      ? process.env.DB_TABLE_SHARE_PROACTIVE
-      : process.env.DB_TABLE_SHARE_ON_REQUEST;
 
-    
-      // check for existing share
-    const sharedDocsCheck = await connection.execute(
-      `SELECT COUNT(*) AS count FROM ${process.env.DB_USER2}.${process.env.DB_TABLE_SHARED_DOCS} WHERE DOCUMENT_ID = :documentId AND TARGET_USER = :targetUser`,
-      [documentId, targetUser]
-    );
-    if (sharedDocsCheck.rows[0].COUNT > 0) {
-      logger.info(`Document ${documentId} already shared with ${targetUser}`);
+    if (await checkIfAlreadyShared(connection, documentId, targetUser)) {
       return;
     }
 
+    const requestInfo = await checkForExistingRequest(
+      connection,
+      documentId,
+      targetUser
+    );
+
+    logger.debug(`requestInfo in grantAccess: ${JSON.stringify(requestInfo)}`);
+
     const userWalletAddress = await getUserWalletAddress(targetUser);
+    const documentHash = await executeBlockchainMockChecksum(documentId);
 
     const { transactionHash, tokenId } = await mintAccessToken(
       userWalletAddress,
@@ -44,46 +44,48 @@ async function grantAccess(
       expiryInSeconds
     );
 
-    logger.debug(`GrantAccess.js Received transactionHash: ${transactionHash}`);
-
-    logger.debug(`GrantAccess.js Received tokenId: ${tokenId}`);
-
     if (!transactionHash || tokenId === null || tokenId === undefined) {
       logger.error(
-        "GrantAccess.js Token minting failed. No transaction hash or token ID received."
+        "Token minting failed. No transaction hash or token ID received."
       );
       return;
     }
 
-    const shareTime = Math.floor(Date.now() / 1000);
-    const tokenExpiry = shareTime + expiryInSeconds;
+    // check if the request already exists and is in 'requested' status
+    if (requestInfo && requestInfo.status === 'requested') {
 
-    const accessQuery = `INSERT INTO ${tableName} (DOCUMENT_ID, TOKEN_ID, TARGET_USER, SHARE_TIME, ACCESS_TRANSACTION_HASH, TOKEN_EXPIRY) VALUES (:documentId, :tokenId, :targetUser, :shareTime, :transactionHash, :tokenExpiry)`;
+      // update the existing request
+      await updateExistingRequest(
+        connection,
+        documentId,
+        targetUser,
+        tokenId,
+        transactionHash,
+        expiryInSeconds,
+        requestInfo
+      );
 
-    logger.debug(`GrantAccess.js Query: ${accessQuery}`);
+    } else {
 
-    logger.debug(
-      `GrantAccess.js Type of tokenId going into table: ${typeof tokenId} - Value: ${tokenId}`
-    );
-
-    await connection.execute(accessQuery, [
-      documentId,
-      tokenId,
-      targetUser,
-      shareTime,
-      transactionHash,
-      tokenExpiry,
-    ]);
-
-    await connection.commit();
+      logger.debug(`No incoming request found. Granting access.`);
+      // log in database
+      await logGrantInDB(
+        connection,
+        documentId,
+        tokenId,
+        targetUser,
+        transactionHash,
+        expiryInSeconds
+      );
+    }
 
     logger.info(
-      `GrantAccess.js Document ${documentId} shared with ${targetUser}. Token id: ${tokenId}, Transaction hash: ${transactionHash}`
+      `Document ${documentId} shared with ${targetUser}. Token id: ${tokenId}, Transaction hash: ${transactionHash}`
     );
   } catch (error) {
-    logger.error(`GrantAccess.js Error in granting access: ${error.message}`);
+    logger.error(`Error in granting access: ${error.message}`);
     if (error.sqlMessage) {
-      logger.error(`GrantAccess.js SQL Error: ${error.sqlMessage}`);
+      logger.error(`SQL Error: ${error.sqlMessage}`);
     }
   } finally {
     if (connection) await connection.close();

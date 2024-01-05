@@ -9,7 +9,7 @@ async function getTokenId(documentId) {
   let connection;
   try {
     connection = await getConnection("user1");
-    const query = `SELECT TOKEN_ID FROM ${process.env.DB_USER2}.${process.env.DB_TABLE_SHARED_DOCS} WHERE document_id = :documentId`;
+    const query = `SELECT TOKEN_ID FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} WHERE doc_id = :documentId`;
 
     logger.debug(`tokenUtils.js query executed`);
 
