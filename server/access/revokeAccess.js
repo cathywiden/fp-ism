@@ -34,7 +34,7 @@ async function revokeAccess(documentId, reason, targetUser) {
     );
 
     // update the table based on tokenId
-    const revokeQuery = `UPDATE ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} SET REV_TS = :revokeTime, REV_TX_HASH = :transactionHash, REV_REASON = :reason, STATUS = 'revoked' WHERE TOKEN_ID = :tokenId`;
+    const revokeQuery = `UPDATE ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} SET REV_TS = :revokeTime, REV_TX_HASH = :transactionHash, REASON = :reason, STATUS = 'revoked' WHERE TOKEN_ID = :tokenId`;
 
     logger.debug(`revokeAccess.js Revoke query: ${revokeQuery}`);
 

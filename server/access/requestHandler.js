@@ -9,9 +9,9 @@ const { getUserWalletAddress } = require("../utilities/extractWalletAddress");
 
 const { mintAccessToken } = require("../utilities/smartContractUtils");
 
-async function denyRequest(documentId, userAddress, reason) {
+async function denyRequest(documentId, targetUser, reason) {
   try {
-    const walletAddress = await getUserWalletAddress(userAddress);
+    const walletAddress = await getUserWalletAddress(targetUser);
     if (!walletAddress) {
       throw new Error(`No wallet address found for user ${userAddress}`);
     }
@@ -23,7 +23,7 @@ async function denyRequest(documentId, userAddress, reason) {
     );
 
     // log denied request in the DB
-    await logDenyInDB(documentId, walletAddress, reason, transactionHash);
+    await logDenyInDB(documentId, targetUser, reason, transactionHash);
   } catch (error) {
     logger.error(`Error in denyRequest: ${error.message}`);
   }
