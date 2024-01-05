@@ -69,7 +69,35 @@ async function executeBlockchainMockChecksum(documentId) {
   }
 }
 
-// clean up expired tokens
+async function logDenyInDB(documentId, targetUser, reason, transactionHash) {
+  let connection;
+  try {
+    connection = await getConnection("user1");
+
+    const denyQuery = `INSERT INTO ${process.env.DB_TABLE_DENIED} 
+                        (DOCUMENT_ID, TARGET_USER, DENY_TIME, DENY_REASON, DENY_TRANSACTION_HASH) 
+                       VALUES (:documentId, :targetUser, :denyTime, :denyReason, :transactionHash)`;
+
+    const result = await connection.execute(denyQuery, {
+      documentId: documentId,
+      targetUser: targetUser,
+      denyTime: Math.floor(Date.now() / 1000),
+      denyReason: reason,
+      transactionHash: transactionHash  
+    });
+
+    await connection.commit();
+    return result;
+  } catch (error) {
+    throw error;
+  } finally {
+    if (connection) {
+      await connection.close();
+    }
+  }
+}
+
+// clean up expired tokens in db
 async function getExpiredTokens() {
   let connection;
   try {
@@ -86,4 +114,4 @@ async function getExpiredTokens() {
   }
 }
 
-module.exports = { getDocumentById, getExpiredTokens, executeBlockchainMockChecksum };
+module.exports = { getDocumentById, getExpiredTokens, executeBlockchainMockChecksum, logDenyInDB };

@@ -1,13 +1,9 @@
 // server/utilities/requestAccess.js
 
 const logger = require("../utilities/logger");
-
 const { getUserWalletAddress } = require("../utilities/extractWalletAddress");
-
 const { getConnection } = require("../utilities/dbConnector");
-
 const { requestBlockchainAccess } = require("../utilities/smartContractUtils");
-
 const { connectToHeap } = require("../utilities/heapConnect");
 
 async function requestAccess(documentId, requester) {
@@ -28,7 +24,7 @@ async function requestAccess(documentId, requester) {
       );
 
       logger.info(
-        `requestAccess.js Submitted blockchain access request in tx ${transactionHash}`
+        `requestAccess.js Submitted blockchain access request in transaction ${transactionHash}`
       );
 
       if (transactionHash) {
@@ -71,11 +67,11 @@ async function checkDuplicates(connection, documentId, requester) {
     return "Document data not found";
   } else {
     // check if a request already exists
-    const existingRequestCheck = `SELECT COUNT(*) AS count FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARE_ON_REQUEST} WHERE DOCUMENT_ID = :documentId AND TARGET_USER = :requester`;
-    const existingRequestResult = await connection.execute(
-      existingRequestCheck,
-      [documentId, requester]
-    );
+    const existingRequestCheck = `SELECT COUNT(*) AS count FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} WHERE DOC_ID = :documentId AND TARGET_USER = :requester AND STATUS = 'requested'`;
+    const existingRequestResult = await connection.execute(existingRequestCheck, {
+      documentId: documentId,
+      requester: requester
+    });
 
     if (existingRequestResult.rows[0].COUNT > 0) {
       logger.info(
@@ -96,9 +92,11 @@ async function logRequestDB(
   transactionHash
 ) {
   try {
-    const requestQuery = `INSERT INTO ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARE_ON_REQUEST} (DOCUMENT_ID, TARGET_USER, REQUEST_TIME, REQUEST_TRANSACTION_HASH) VALUES (:documentId, :requester, :requestTime, :transactionHash)`;
+    const requestQuery = `INSERT INTO ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} (DOC_ID, TARGET_USER, REQ_TS, REQ_TX_HASH, STATUS) VALUES (:documentId, :requester, :requestTime, :transactionHash, 'requested')`;
 
     logger.debug(`Document request logging query: ${requestQuery}`);
+
+    logger.debug(`DOUBLE CHECK in requestAccess: document ID: ${documentId}, target user: ${requester}`);
 
     await connection.execute(requestQuery, [
       documentId,

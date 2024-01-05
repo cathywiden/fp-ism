@@ -6,6 +6,7 @@ const { initialize, close } = require("../server/utilities/dbConnector");
 const { validateToken } = require("./access/tokenValidation");
 const logger = require("../server/utilities/logger");
 const { grantAccess } = require("./access/grantAccess");
+const { grantRequest, denyRequest } = require("./access/requestHandler");
 const { revokeAccess } = require("./access/revokeAccess");
 const { requestAccess } = require("./access/requestAccess");
 const {
@@ -99,25 +100,27 @@ app.post("/request-access", async (req, res) => {
   }
 });
 
-// grant access endpoint
-app.post("/grant-access", async (req, res) => {
-  const { documentId, targetUser } = req.body;
+app.post("/deny-access", async (req, res) => {
+  const { documentId, userAddress, reason } = req.body;
   try {
-    await grantAccess(documentId, targetUser);
-    res.status(200).send("Access granted");
+    await denyRequest(documentId, userAddress, reason);
+    res.status(200).send("Access denied");
   } catch (error) {
-    res.status(500).send("Error granting access");
+    logger.error(`Error in /deny-access endpoint: ${error.message}`);
+    res.status(500).send("Error denying access");
   }
 });
 
-// deny access endpoint
-app.post("/deny-access", async (req, res) => {
-  const { documentId, reason } = req.body;
+
+// grant access
+app.post("/grant-access", async (req, res) => {
   try {
-    await denyDocumentAccess(documentId, reason);
-    res.status(200).send("Access denied");
+    const requestData = req.body;
+    await grantRequest(requestData);
+    res.status(200).send("Access granted successfully");
   } catch (error) {
-    res.status(500).send("Error denying access");
+    logger.error(`Error in /grant-access endpoint: ${error.message}`);
+    res.status(500).send("Error granting access");
   }
 });
 
