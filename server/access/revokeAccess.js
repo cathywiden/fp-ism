@@ -45,7 +45,7 @@ async function revokeAccess(documentId, reason, targetUser) {
       reason: reason,
     });
 
-    const deleteQuery = `DELETE FROM ${process.env.DB_USER2}.${process.env.DB_TABLE_SHARED_DOCS} WHERE DOCUMENT_ID = :documentId`;
+    const deleteQuery = `DELETE FROM ${process.env.DB_USER2}.${process.env.DB_TABLE_SHARED_DOCS} WHERE DOC_ID = :documentId`;
     logger.debug(`revokeAccess.js Delete query: ${deleteQuery}`);
     await connection.execute(deleteQuery, [documentId]);
 

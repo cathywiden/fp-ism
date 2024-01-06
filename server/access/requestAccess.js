@@ -4,8 +4,7 @@ const logger = require("../utilities/logger");
 const { getUserWalletAddress } = require("../utilities/extractWalletAddress");
 const { getConnection } = require("../utilities/dbConnector");
 const { requestBlockchainAccess } = require("../utilities/smartContractUtils");
-
-const { logRequestDB, doesRequestExist } =require("../utilities/dbUtils");
+const { logRequestDB, doesRequestExist } = require("../utilities/dbUtils");
 
 async function requestAccess(documentId, requester) {
   let connection;
@@ -49,7 +48,5 @@ async function requestAccess(documentId, requester) {
     if (connection) await connection.close();
   }
 }
-
-
 
 module.exports = { requestAccess };
