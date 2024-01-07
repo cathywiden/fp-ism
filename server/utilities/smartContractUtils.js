@@ -172,6 +172,8 @@ async function requestBlockchainAccess(documentId, requesterAddress) {
   }
 }
 
+
+
 async function handleDenyRequest(documentId, targetUser, reason) {
   try {
     const gasLimit = ethers.utils.hexlify(1000000);
@@ -181,15 +183,23 @@ async function handleDenyRequest(documentId, targetUser, reason) {
       gasLimit,
     });
     const transactionHash = transaction.hash;
+    
+    // logger.debug(`Transaction hash: ${transactionHash}`);
+    
+    
     logger.info(
       `Access denied for user ${targetUser} and document ${documentId}. Transaction hash: ${transactionHash}`
     );
     return transactionHash;
+
   } catch (error) {
     logger.error(`Error in handleDenyRequest: ${error.message}`);
     throw error; 
   }
 }
+
+
+
 
 // logs tampering of a document to the blockchain
 async function logTampering(documentId, oldHash, newHash) {

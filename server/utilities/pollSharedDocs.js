@@ -16,7 +16,7 @@ async function checkSharedDocs() {
     // always using user2 credentials since SHARED_DOC is user2's table!
     connection = await getConnection("user2");
     const result = await connection.execute(
-      `SELECT document_id FROM ${process.env.DB_TABLE_SHARED_DOCS}`
+      `SELECT doc_id FROM ${process.env.DB_TABLE_SHARED_DOCS}`
     );
     const validDocs = [];
 
@@ -28,7 +28,7 @@ async function checkSharedDocs() {
 
     for (const row of result.rows) {
       // Oracle returns document_ids as objects, therefore the toString conversion
-      const documentId = row.DOCUMENT_ID.toString();
+      const documentId = row.DOC_ID.toString();
       const valid = await isTokenValid(userWalletAddress, documentId);
       if (valid) {
         validDocs.push(documentId);

@@ -6,7 +6,7 @@ const { initialize, close } = require("../server/utilities/dbConnector");
 const { validateToken } = require("./access/tokenValidation");
 const logger = require("../server/utilities/logger");
 const { grantAccess } = require("./access/grantAccess");
-const { grantRequest, denyRequest } = require("./access/requestHandler");
+const { denyRequest } = require("./access/denyRequest");
 const { revokeAccess } = require("./access/revokeAccess");
 const { requestAccess } = require("./access/requestAccess");
 const {
@@ -110,7 +110,6 @@ app.post("/deny-access", async (req, res) => {
     res.status(500).send("Error denying access");
   }
 });
-
 
 // grant access
 app.post("/grant-access", async (req, res) => {
