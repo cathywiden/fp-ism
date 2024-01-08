@@ -1,25 +1,27 @@
-// frontend/src/components/DocumentViewer.jsx
-
 import React, { useState } from "react";
 
 function DocumentViewer({ token }) {
-  const [documentId, setDocId] = useState('');
-  const [xmlData, setXmlData] = useState('');
+  const [documentId, setDocId] = useState("");
+  const [xmlData, setXmlData] = useState("");
+  const [tamperWarning, setTamperWarning] = useState("");
+  const TAMPER_WARNING = "Warning: This dicument has been tampered with!";
 
   async function fetchDocument() {
     try {
       const response = await fetch(`http://localhost:3000/document/${documentId}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          "Authorization": `Bearer ${token}`
         }
       });
 
       if (!response.ok) {
-        throw new Error('Document not found or access denied');
+        throw new Error("Document not found or access denied");
       }
 
-      const data = await response.text();
-      setXmlData(data.substring(0, 500)); 
+      const result = await response.json();
+      setXmlData(result.document.substring(0, 500));
+
+      setTamperWarning(prevWarning => (result.isTampered ? TAMPER_WARNING : ""));
     } catch (error) {
       setXmlData(error.message);
     }
@@ -33,9 +35,10 @@ function DocumentViewer({ token }) {
         placeholder="Enter document ID"
       />
       <button onClick={fetchDocument}>Fetch Document</button>
+      {tamperWarning && <div style={{ color: "red", marginTop: "10px", marginBottom: "10px" }}>{tamperWarning}</div>}
       <div>{xmlData}</div>
     </div>
-  )
+  );
 }
 
 export default DocumentViewer;

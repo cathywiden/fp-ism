@@ -1,10 +1,10 @@
 // frontend/src/components/LoginForm.jsx
 
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
 function LoginForm({ onLogin }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleSubmit = (event) => {
     event.preventDefault();

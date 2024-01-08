@@ -81,26 +81,29 @@ app.get("/protected-route", validateJWT, determineUserRole, (req, res) => {
   }
 });
 
-// endpoint to query a document by id and display the XML
 app.get("/document/:id", validateToken, async (req, res) => {
   try {
     const document_id = req.params.id;
     const userType = "user2";
-    logger.debug(
-      `Fetching document with ID: ${document_id} for userType: ${userType}`
-    );
+    logger.debug(`Fetching document with ID: ${document_id} for userType: ${userType}`);
     const document = await getDocumentById(document_id, userType);
 
     if (!document || document.length === 0) {
       logger.info("No document found or empty document");
       return res.status(404).send("The specified document ID does not exist!");
     }
-    res.json(document);
+
+    // Check for tampering
+    const isTampered = await isTamperedWithInDB(document_id); 
+
+    // Send a single response with document and tampering status
+    res.json({ document, isTampered });
   } catch (error) {
     logger.error(`Error in route handler: ${error.message}`);
     res.status(500).send("Error fetching document");
   }
 });
+
 
 app.post("/proactive-share", async (req, res) => {
   logger.info(`Received request: ${JSON.stringify(req.body)}`);
