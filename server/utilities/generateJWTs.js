@@ -7,12 +7,12 @@ const logger = require("./logger");
 async function generateTokens() {
   try {
     const user1Data = {
-      username: process.env.DB_USER1,
+      username: "user1",
       walletAddress: process.env.WALLET1
     };
 
     const user2Data = {
-      username: process.env.DB_USER2,
+      username: "user2",
       walletAddress: process.env.WALLET2
     };
 
