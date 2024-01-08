@@ -32,8 +32,8 @@ app.set("json spaces", 2); // pretty-format logs
 
 // hardcoded credentials for MVP
 const USERS = {
-  user1: { username: "user1", password: "user1", role: "Sharer, Auditor" },
-  user2: { username: "user2", password: "user2", role: "Receiver" }
+  user1: { username: "user1", password: "user1", role: "Sharer, Auditor", walletAddress: process.env.WALLET1 },
+  user2: { username: "user2", password: "user2", role: "Receiver", walletAddress: process.env.WALLET2 }
 };
 
 app.post("/login", (req, res) => {
@@ -42,7 +42,8 @@ app.post("/login", (req, res) => {
 
   if (user && user.password === password) {
    
-    const token = generateToken({ username: user.username, role: user.role });
+    const token = generateToken({ username: user.username, role: user.role, walletAddress: user.walletAddress });
+
     res.json({ token });
   } else {
     res.status(401).send("Invalid credentials");
@@ -53,7 +54,7 @@ app.post("/login", (req, res) => {
 
 
 
-
+// fetch user roles from db
 app.get("/get-user-role", validateJWT, determineUserRole, (req, res) => {
   res.json({ role: req.user.role });
 });

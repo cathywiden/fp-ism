@@ -1,3 +1,5 @@
+// frontend/src/App.jsx
+
 import React, { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
 import DocumentViewer from './components/DocumentViewer';
@@ -45,7 +47,8 @@ function App() {
       {user ? (
         <div>
           Welcome {user.username}!
-          {renderViewer && <DocumentViewer />}
+          {renderViewer && <DocumentViewer token={localStorage.getItem('token')} />
+}
           <button onClick={logout}>Logout</button>
         </div>
       ) : (

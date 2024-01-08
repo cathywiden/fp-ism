@@ -17,6 +17,9 @@ async function determineUserRole(req, res, next) {
 
   logger.debug(`Determining role for DB user: ${dbUser} with wallet address: ${walletAddress}`);
 
+  console.log(`DB User: ${dbUser}, Wallet Address: ${walletAddress}`);
+
+  
   try {
     connection = await getConnection("user1");
     const query = `SELECT role FROM ${process.env.DB_TABLE_WALLET} WHERE username = :dbUser`;

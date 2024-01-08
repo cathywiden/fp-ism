@@ -5,6 +5,9 @@ const { generateToken } = require("./JWTGenerator");
 const logger = require("./logger");
 
 async function generateTokens() {
+
+
+
   try {
     const user1Data = {
       username: "user1",
@@ -18,6 +21,9 @@ async function generateTokens() {
       walletAddress: process.env.WALLET2
     };
 
+    console.log('User data for token generation:', user1Data);
+    console.log('User data for token generation:', user2Data);
+    
     const tokenUser1 = generateToken(user1Data);
     const tokenUser2 = generateToken(user2Data);
 
