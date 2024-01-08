@@ -13,6 +13,7 @@ const {
   isTamperedWithInDB,
   TAMPER_POLLING_INTERVAL,
 } = require("./utilities/logTampering");
+const checkDocumentTampering  = require("./utilities/checkDocumentTampering");
 const {
   checkSharedDocs,
   POLLING_INTERVAL,
@@ -93,16 +94,21 @@ app.get("/document/:id", validateToken, async (req, res) => {
       return res.status(404).send("The specified document ID does not exist!");
     }
 
-    // Check for tampering
-    const isTampered = await isTamperedWithInDB(document_id); 
+    // check for tampering
+    const isTampered = await checkDocumentTampering(document_id); 
 
-    // Send a single response with document and tampering status
+    console.log("Has tamper check been executed at all?");
+
+    console.log(isTampered);
+
+    // send a single response with document and tampering status
     res.json({ document, isTampered });
   } catch (error) {
     logger.error(`Error in route handler: ${error.message}`);
     res.status(500).send("Error fetching document");
   }
 });
+
 
 
 app.post("/proactive-share", async (req, res) => {

@@ -19,6 +19,8 @@ function DocumentViewer({ token }) {
       }
 
       const result = await response.json();
+      console.log(result.isTampered);
+
       setXmlData(result.document.substring(0, 500));
 
       setTamperWarning(prevWarning => (result.isTampered ? TAMPER_WARNING : ""));
