@@ -19,7 +19,7 @@ const {
 } = require("./utilities/pollSharedDocs");
 const { determineUserRole } = require("./middlewares/roleDetermination");
 const validateJWT = require("./middlewares/validateJWT");
-const loginRoute = require("./access/login");
+const { generateToken } = require("./utilities/JWTGenerator");
 
 const express = require("express");
 const cors = require("cors");
@@ -28,9 +28,31 @@ const port = process.env.PORT || 3000;
 const app = express();
 app.use(express.json());
 app.use(cors());
-app.set("json spaces", 2); // pretty-format logs!
+app.set("json spaces", 2); // pretty-format logs
 
-app.use('/api', loginRoute);
+// hardcoded credentials for MVP
+const USERS = {
+  user1: { username: "user1", password: "user1", role: "Sharer, Auditor" },
+  user2: { username: "user2", password: "user2", role: "Receiver" }
+};
+
+app.post("/login", (req, res) => {
+  const { username, password } = req.body;
+  const user = USERS[username];
+
+  if (user && user.password === password) {
+   
+    const token = generateToken({ username: user.username, role: user.role });
+    res.json({ token });
+  } else {
+    res.status(401).send("Invalid credentials");
+  }
+});
+
+
+
+
+
 
 app.get("/get-user-role", validateJWT, determineUserRole, (req, res) => {
   res.json({ role: req.user.role });

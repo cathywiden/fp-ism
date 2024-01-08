@@ -8,11 +8,13 @@ async function generateTokens() {
   try {
     const user1Data = {
       username: "user1",
-      walletAddress: process.env.WALLET1
+      role: process.env.USER1_ROLE,
+      walletAddress: process.env.WALLET1,
     };
 
     const user2Data = {
       username: "user2",
+      role: process.env.USER2_ROLE,
       walletAddress: process.env.WALLET2
     };
 
