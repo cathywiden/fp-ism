@@ -17,6 +17,9 @@ const {
   checkSharedDocs,
   POLLING_INTERVAL,
 } = require("./utilities/pollSharedDocs");
+const { determineUserRole } = require("./middlewares/roleDetermination");
+const validateJWT = require("./middlewares/validateJWT");
+const loginRoute = require("./access/login");
 
 const express = require("express");
 const cors = require("cors");
@@ -26,6 +29,26 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 app.set("json spaces", 2); // pretty-format logs!
+
+app.use('/api', loginRoute);
+
+app.get("/get-user-role", validateJWT, determineUserRole, (req, res) => {
+  res.json({ role: req.user.role });
+});
+
+// protected route for jwt
+app.get('/protected-route', validateJWT, determineUserRole, (req, res) => {
+
+  if (req.user.role === 'Sharer, Auditor') {
+    // operations specific to Sharer and Auditor
+    res.json({ message: 'Accessing Sharer and Auditor specific data' });
+  } else if (req.user.role === 'Receiver') {
+    // perform operations specific to Receiver
+    res.json({ message: 'Accessing Receiver specific data' });
+  } else {
+    res.status(403).send('Access denied. Unauthorized role.');
+  }
+});
 
 // endpoint to query a document by id and display the XML
 app.get("/document/:id", validateToken, async (req, res) => {
