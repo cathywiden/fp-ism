@@ -17,6 +17,9 @@ const {
   checkSharedDocs,
   POLLING_INTERVAL,
 } = require("./utilities/pollSharedDocs");
+const { determineUserRole } = require("./middlewares/roleDetermination");
+const validateJWT = require("./middlewares/validateJWT");
+const { generateToken } = require("./utilities/JWTGenerator");
 
 const express = require("express");
 const cors = require("cors");
@@ -25,7 +28,50 @@ const port = process.env.PORT || 3000;
 const app = express();
 app.use(express.json());
 app.use(cors());
-app.set("json spaces", 2); // pretty-format logs!
+app.set("json spaces", 2); // pretty-format logs
+
+// hardcoded credentials for MVP
+const USERS = {
+  user1: { username: "user1", password: "user1", role: "Sharer, Auditor", walletAddress: process.env.WALLET1 },
+  user2: { username: "user2", password: "user2", role: "Receiver", walletAddress: process.env.WALLET2 }
+};
+
+app.post("/login", (req, res) => {
+  const { username, password } = req.body;
+  const user = USERS[username];
+
+  if (user && user.password === password) {
+   
+    const token = generateToken({ username: user.username, role: user.role, walletAddress: user.walletAddress });
+
+    res.json({ token });
+  } else {
+    res.status(401).send("Invalid credentials");
+  }
+});
+
+
+
+
+
+// fetch user roles from db
+app.get("/get-user-role", validateJWT, determineUserRole, (req, res) => {
+  res.json({ role: req.user.role });
+});
+
+// protected route for jwt
+app.get('/protected-route', validateJWT, determineUserRole, (req, res) => {
+
+  if (req.user.role === 'Sharer, Auditor') {
+    // operations specific to Sharer and Auditor
+    res.json({ message: 'Accessing Sharer and Auditor specific data' });
+  } else if (req.user.role === 'Receiver') {
+    // perform operations specific to Receiver
+    res.json({ message: 'Accessing Receiver specific data' });
+  } else {
+    res.status(403).send('Access denied. Unauthorized role.');
+  }
+});
 
 // endpoint to query a document by id and display the XML
 app.get("/document/:id", validateToken, async (req, res) => {
