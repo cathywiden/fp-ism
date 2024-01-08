@@ -36,13 +36,3 @@
     transform: rotate(360deg);
   }
 }
-
-.xml-display {
-  margin: 30px;
-  margin-top: 20px;
-  border: 1px solid white;
-  padding: 10px;
-  max-height: 300px;
-  overflow-y: auto; /* allows scrolling if content is too long */
-  white-space: pre-wrap; /* keeps the XML format */
-}

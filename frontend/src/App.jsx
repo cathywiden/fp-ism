@@ -39,7 +39,6 @@ function App() {
     setUser(null);
   };
   
-
   const renderViewer = user?.role === "Receiver"; 
 
   return (
