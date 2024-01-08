@@ -1,4 +1,4 @@
-// frontend/src/components/LoginForm
+// frontend/src/components/LoginForm.jsx
 
 import React, { useState } from 'react';
 

@@ -32,8 +32,18 @@ app.set("json spaces", 2); // pretty-format logs
 
 // hardcoded credentials for MVP
 const USERS = {
-  user1: { username: "user1", password: "user1", role: "Sharer, Auditor", walletAddress: process.env.WALLET1 },
-  user2: { username: "user2", password: "user2", role: "Receiver", walletAddress: process.env.WALLET2 }
+  user1: {
+    username: "user1",
+    password: "user1",
+    role: "Sharer, Auditor",
+    walletAddress: process.env.WALLET1,
+  },
+  user2: {
+    username: "user2",
+    password: "user2",
+    role: "Receiver",
+    walletAddress: process.env.WALLET2,
+  },
 };
 
 app.post("/login", (req, res) => {
@@ -41,8 +51,11 @@ app.post("/login", (req, res) => {
   const user = USERS[username];
 
   if (user && user.password === password) {
-   
-    const token = generateToken({ username: user.username, role: user.role, walletAddress: user.walletAddress });
+    const token = generateToken({
+      username: user.username,
+      role: user.role,
+      walletAddress: user.walletAddress,
+    });
 
     res.json({ token });
   } else {
@@ -50,26 +63,21 @@ app.post("/login", (req, res) => {
   }
 });
 
-
-
-
-
 // fetch user roles from db
 app.get("/get-user-role", validateJWT, determineUserRole, (req, res) => {
   res.json({ role: req.user.role });
 });
 
 // protected route for jwt
-app.get('/protected-route', validateJWT, determineUserRole, (req, res) => {
-
-  if (req.user.role === 'Sharer, Auditor') {
+app.get("/protected-route", validateJWT, determineUserRole, (req, res) => {
+  if (req.user.role === "Sharer, Auditor") {
     // operations specific to Sharer and Auditor
-    res.json({ message: 'Accessing Sharer and Auditor specific data' });
-  } else if (req.user.role === 'Receiver') {
+    res.json({ message: "Accessing Sharer and Auditor specific data" });
+  } else if (req.user.role === "Receiver") {
     // perform operations specific to Receiver
-    res.json({ message: 'Accessing Receiver specific data' });
+    res.json({ message: "Accessing Receiver specific data" });
   } else {
-    res.status(403).send('Access denied. Unauthorized role.');
+    res.status(403).send("Access denied. Unauthorized role.");
   }
 });
 
