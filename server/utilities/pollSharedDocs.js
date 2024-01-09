@@ -8,7 +8,7 @@ const { getUserWalletAddress } = require("./extractWalletAddress");
 
 
 // const POLLING_INTERVAL = 300000; // 5 minutes
-const POLLING_INTERVAL = 100000; // for test only
+const POLLING_INTERVAL = 1000000; // for test only
 
 async function checkSharedDocs() {
   let connection;

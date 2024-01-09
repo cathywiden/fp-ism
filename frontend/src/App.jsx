@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
 import DocumentViewer from './components/DocumentViewer';
 import LoginForm from "./components/LoginForm";
+import User1Dashboard from './components/Dashboard';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -40,14 +41,15 @@ function App() {
   };
   
   const renderViewer = user?.role === "Receiver"; 
+  const renderDashboard = user?.username === "Sharer, Auditor";
 
   return (
     <div className="App">
       {user ? (
         <div>
           Welcome {user.username}!
-          {renderViewer && <DocumentViewer token={localStorage.getItem('token')} />
-}
+          {renderViewer && <DocumentViewer token={localStorage.getItem('token')} />}
+          {renderDashboard && <User1Dashboard token={localStorage.getItem('token')} />} {/* Render dashboard */}
           <button onClick={logout}>Logout</button>
         </div>
       ) : (

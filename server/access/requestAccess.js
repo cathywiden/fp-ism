@@ -23,6 +23,8 @@ async function requestAccess(documentId, requester) {
         userWalletAddress
       );
 
+      logger.debug(userWalletAddress);
+
       logger.info(
         `requestAccess.js Submitted blockchain access request in transaction ${transactionHash}`
       );
