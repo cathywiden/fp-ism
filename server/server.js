@@ -84,10 +84,10 @@ app.get("/protected-route", validateJWT, determineUserRole, (req, res) => {
 
 app.get("/document/:id", validateToken, async (req, res) => {
   try {
-    const document_id = req.params.id;
+    const documentId = req.params.id;
     const userType = "user2";
-    logger.debug(`Fetching document with ID: ${document_id} for userType: ${userType}`);
-    const document = await getDocumentById(document_id, userType);
+    logger.debug(`Fetching document with ID: ${documentId} for userType: ${userType}`);
+    const document = await getDocumentById(documentId, userType);
 
     if (!document || document.length === 0) {
       logger.info("No document found or empty document");
@@ -95,11 +95,9 @@ app.get("/document/:id", validateToken, async (req, res) => {
     }
 
     // check for tampering
-    const isTampered = await checkDocumentTampering(document_id); 
+    const isTampered = await checkDocumentTampering(documentId); 
 
-    console.log("Has tamper check been executed at all?");
-
-    console.log(isTampered);
+    logger.debug(`isTampered: ${isTampered}`);
 
     // send a single response with document and tampering status
     res.json({ document, isTampered });
@@ -148,7 +146,31 @@ app.post("/revoke-access", async (req, res) => {
   }
 });
 
-app.post("/request-access", async (req, res) => {
+
+app.post("/request-access", validateToken, determineUserRole, async (req, res) => {
+  const { documentId } = req.body;
+  let requester;
+
+  // req.user is set (frontend call with JWT)
+  if (req.user) {
+    requester = req.dbUser; // dbUser set by determineUserRole middleware
+  } else {
+    // direct backend call -- use requester from request body
+    requester = req.body.requester;
+  }
+
+  logger.debug(`Requesting access to document ID: ${documentId} for user: ${requester}`);
+
+  try {
+    const response = await requestAccess(documentId, requester);
+    res.status(200).json({ message: response });
+  } catch (error) {
+    logger.error(`Error in /request-access endpoint: ${error.message}`);
+    res.status(500).json({ error: "Error submitting request" });
+  }
+});
+
+/* app.post("/request-access", async (req, res) => {
   const { documentId, requester } = req.body;
 
   logger.debug(`Received documentId in endpoint: ${documentId}`);
@@ -161,7 +183,8 @@ app.post("/request-access", async (req, res) => {
     logger.error(`Error in route handler: ${error.message}`);
     res.status(500).send("Error submitting request");
   }
-});
+
+ */
 
 app.post("/deny-access", async (req, res) => {
   const { documentId, userAddress, reason } = req.body;

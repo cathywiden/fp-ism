@@ -2,7 +2,7 @@
 
 const logger = require("./logger");
 const { getConnection } = require("./dbConnector");
-const { connectToHeap } = require("../utilities/heapConnect");
+const { connectToHeap } = require("./heapConnect");
 require("dotenv").config({ path: "../.env" });
 
 // query document by document_id
@@ -89,35 +89,43 @@ async function doesRequestExist(connection, documentId, requester) {
 
   logger.debug(`docCheckQuery: ${docCheckQuery}`);
 
-  // execute document existance check
+  // Execute document existence check
   const docExistsResult = await connection.execute(docCheckQuery, [documentId]);
 
-  // check if document exists in heap
-  // check for actual document data (not ID)
+  // Check if document exists in heap (check for actual document data, not ID)
   if (docExistsResult.rows[0].COUNT === 0) {
     console.log("Document data not found");
     return "Document data not found";
   } else {
-    // check if a request already exists
-    const existingRequestCheck = `SELECT COUNT(*) AS count FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} WHERE DOC_ID = :documentId AND TARGET_USER = :requester AND STATUS = 'requested'`;
-    const existingRequestResult = await connection.execute(
-      existingRequestCheck,
+    // Check if a request or grant already exists
+    const existingCheck = `SELECT STATUS FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} WHERE DOC_ID = :documentId AND TARGET_USER = :requester`;
+    const existingResult = await connection.execute(
+      existingCheck,
       {
         documentId: documentId,
         requester: requester,
       }
     );
 
-    if (existingRequestResult.rows[0].COUNT > 0) {
-      logger.info(
-        `Request already exists for Document ID: ${documentId} by User: ${requester}`
-      );
-      return "Request already exists";
+    if (existingResult.rows.length > 0) {
+      const status = existingResult.rows[0].STATUS;
+      if (status === 'requested') {
+        logger.info(
+          `Request already exists for Document ID: ${documentId} by User: ${requester}`
+        );
+        return "Request already exists";
+      } else if (status === 'granted') {
+        logger.info(
+          `Access already granted for Document ID: ${documentId} to User: ${requester}`
+        );
+        return "Access already granted";
+      }
     }
   }
 
   return "No duplicates";
 }
+
 
 async function checkForExistingRequest(connection, documentId, targetUser) {
   const requestCheckQuery = `
