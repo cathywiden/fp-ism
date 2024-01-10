@@ -1,52 +1,54 @@
+// frontend/src/components/Dashboard.js
+
 import React, { useState, useEffect } from "react";
 
-function User1Dashboard({ token }) {
-  const [documents, setDocuments] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+function User1Dashboard({ token, lastUpdated }) {
+  const [sharedDocs, setSharedDocs] = useState([]);
 
   useEffect(() => {
-    async function fetchDocuments() {
-      try {
-        const response = await fetch("/api/user1/documents", {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
+    const fetchSharedDocs = async () => {
+      const response = await fetch("http://localhost:3000/shared-docs", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
         const data = await response.json();
-        setDocuments(data);
-      } catch (error) {
-        console.error("Error:", error);
-      } finally {
-        setIsLoading(false);
+        setSharedDocs(data);
+        
+      } else {
+        // errors?
       }
-    }
+    };
 
-    fetchDocuments();
-  }, [token]);
-
-  if (isLoading) return <p>Loading...</p>;
-
+    fetchSharedDocs();
+  }, [token, lastUpdated]); // re-fetch whenever lastUpdated changes
   return (
-    <table>
-      <thead>
-        <tr>
-          <th>Document ID</th>
-          <th>Status</th>
-          <th>Target User</th>
-          <th>Token ID</th>
-          <th>Token Expiry</th>
-        </tr>
-      </thead>
-      <tbody>
-        {documents.map(doc => (
-          <tr key={doc.DOC_ID}>
-            <td>{doc.DOC_ID}</td>
-            <td>{doc.STATUS}</td>
-            <td>{doc.TARGET_USER}</td>
-            <td>{doc.TOKEN_ID}</td>
-            <td>{new Date(doc.TOKEN_EXP_TS).toLocaleDateString()}</td>
+    <div>
+      <h2>Shared Documents</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Document ID</th>
+            <th>Target User</th>
+            <th>Status</th>
+            <th>Token ID</th>
+            <th>Expiry</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {sharedDocs.map((doc) => (
+            <tr key={doc.DOC_ID}>
+              <td>{doc.DOC_ID}</td>
+              <td>{doc.TARGET_USER}</td>
+              <td>{doc.STATUS}</td>
+              <td>{doc.TOKEN_ID}</td>
+              <td>{doc.EXPIRY}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

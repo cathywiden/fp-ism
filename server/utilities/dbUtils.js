@@ -29,6 +29,40 @@ async function getDocumentById(document_id, userType) {
   }
 }
 
+async function getAllSharedDocs(userType) {
+  let connection;
+  logger.debug(`getAllSharedDocs called for userType: ${userType}`);
+
+  try {
+    connection = await getConnection(userType);
+    let query, params;
+
+    if (userType === "user1") {
+      query = `SELECT DOC_ID, TARGET_USER, STATUS, TOKEN_ID, TOKEN_EXP_TS FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS}`;
+      params = [];
+    } else if (userType === "user2") {
+      query = `SELECT DOC_ID FROM ${process.env.DB_USER2}.${process.env.DB_TABLE_SHARED_DOCS}`;
+      params = [];
+    } else {
+      throw new Error('Invalid user type');
+    }
+
+    logger.debug(`Executing query: ${query}`);
+    const result = await connection.execute(query, params);
+
+    console.log("Query result:", result.rows);
+    return result.rows;
+  } catch (error) {
+    logger.error(`Error in getAllSharedDocs: ${error.message}`);
+    throw error;
+  } finally {
+    if (connection) {
+      await connection.close();
+    }
+  }
+}
+
+
 // execute Oracle procedure blockchain_mock_checksum
 async function executeBlockchainMockChecksum(documentId) {
   let connection;
@@ -356,5 +390,6 @@ module.exports = {
   logRequestDB,
   logDenyInDB,
   updateExistingRequestForDeny,
+  getAllSharedDocs
   
 };

@@ -21,6 +21,7 @@ const {
 const { determineUserRole } = require("./middlewares/roleDetermination");
 const validateJWT = require("./middlewares/validateJWT");
 const { generateToken } = require("./utilities/JWTGenerator");
+const { getAllSharedDocs } = require("./utilities/dbUtils");
 
 const express = require("express");
 const cors = require("cors");
@@ -107,9 +108,7 @@ app.get("/document/:id", validateToken, async (req, res) => {
   }
 });
 
-
-
-app.post("/proactive-share", async (req, res) => {
+app.post("/share", async (req, res) => {
   logger.info(`Received request: ${JSON.stringify(req.body)}`);
   try {
     const { documentId, targetUser, documentHash, expiryInSeconds } = req.body;
@@ -125,7 +124,7 @@ app.post("/proactive-share", async (req, res) => {
     );
     res.status(200).send("Document shared successfully");
   } catch (error) {
-    logger.error(`Error in proactive-share endpoint: ${error}`);
+    logger.error(`Error in share endpoint: ${error}`);
     res.status(500).send("Error in document sharing");
   }
 });
@@ -151,11 +150,11 @@ app.post("/request-access", validateToken, determineUserRole, async (req, res) =
   const { documentId } = req.body;
   let requester;
 
-  // req.user is set (frontend call with JWT)
+  // frontend call with JWT: req.user is set
   if (req.user) {
-    requester = req.dbUser; // dbUser set by determineUserRole middleware
+    requester = req.dbUser; // dbUser set by determineUserRole.js
   } else {
-    // direct backend call -- use requester from request body
+    // direct backend call: use requester from req body
     requester = req.body.requester;
   }
 
@@ -170,22 +169,6 @@ app.post("/request-access", validateToken, determineUserRole, async (req, res) =
   }
 });
 
-/* app.post("/request-access", async (req, res) => {
-  const { documentId, requester } = req.body;
-
-  logger.debug(`Received documentId in endpoint: ${documentId}`);
-  logger.debug(`Requester: ${requester}`);
-  try {
-    await requestAccess(documentId, requester);
-
-    res.status(200).send("Request submitted");
-  } catch (error) {
-    logger.error(`Error in route handler: ${error.message}`);
-    res.status(500).send("Error submitting request");
-  }
-
- */
-
 app.post("/deny-access", async (req, res) => {
   const { documentId, userAddress, reason } = req.body;
   try {
@@ -197,7 +180,7 @@ app.post("/deny-access", async (req, res) => {
   }
 });
 
-// grant access
+// may be redundant, check
 app.post("/grant-access", async (req, res) => {
   try {
     const requestData = req.body;
@@ -206,6 +189,16 @@ app.post("/grant-access", async (req, res) => {
   } catch (error) {
     logger.error(`Error in /grant-access endpoint: ${error.message}`);
     res.status(500).send("Error granting access");
+  }
+});
+
+app.get("/shared-docs", validateJWT, async (req, res) => {
+  try {
+    const userType = req.user.role.includes("Receiver") ? "user2" : "user1";
+    const sharedDocs = await getAllSharedDocs(userType);
+    res.json(sharedDocs);
+  } catch (error) {
+    res.status(500).send("Error fetching shared documents");
   }
 });
 
