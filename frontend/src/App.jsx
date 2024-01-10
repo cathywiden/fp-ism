@@ -8,7 +8,7 @@ import User1Dashboard from './components/Dashboard';
 
 function App() {
   const [user, setUser] = useState(null);
-
+  const [lastUpdated, setLastUpdated] = useState(Date.now());
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
     if (savedToken) {
@@ -41,7 +41,7 @@ function App() {
   };
   
   const renderViewer = user?.role === "Receiver"; 
-  const renderDashboard = user?.username === "Sharer, Auditor";
+  const renderDashboard = user?.role === "Sharer, Auditor";
 
   return (
     <div className="App">
@@ -49,7 +49,7 @@ function App() {
         <div>
           Welcome {user.username}!
           {renderViewer && <DocumentViewer token={localStorage.getItem('token')} />}
-          {renderDashboard && <User1Dashboard token={localStorage.getItem('token')} />} {/* Render dashboard */}
+          {renderDashboard && <User1Dashboard token={localStorage.getItem('token')} lastUpdated={lastUpdated} />}
           <button onClick={logout}>Logout</button>
         </div>
       ) : (
