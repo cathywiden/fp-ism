@@ -5,10 +5,33 @@ import "../Dashboard.css";
 
 function Dashboard({ token, lastUpdated }) {
   const [sharedDocs, setSharedDocs] = useState([]);
-  const [directDocId, setDirectDocId] = useState('');
-  const [directTargetUser, setDirectTargetUser] = useState('');
-  const [directExpiryInSeconds, setDirectExpiryInSeconds] = useState('');
-  const [grantStatus, setGrantStatus] = useState('');
+  const [directDocId, setDirectDocId] = useState("");
+  const [directTargetUser, setDirectTargetUser] = useState("");
+  const [directExpiryInSeconds, setDirectExpiryInSeconds] = useState("");
+  const [grantStatus, setGrantStatus] = useState("");
+  const [actionStatus, setActionStatus] = useState({});
+
+  const handleInputDocIdClick = () => {
+    setDirectDocId("");
+  };
+
+  const handleInputTargetUserClick = () => {
+    setDirectTargetUser("");
+  };
+  // Function to render the status indicator based on the action status
+  const renderStatusIndicator = (docId) => {
+    const status = actionStatus[docId];
+    switch (status) {
+      case "in progress":
+        return <span>...</span>;
+      case "completed":
+        return <span className="green-checkmark">✔️</span>;
+      case "error":
+        return <span className="red-cross">❌</span>;
+      default:
+        return null; // no action taken yet!
+    }
+  };
 
   useEffect(() => {
     const fetchSharedDocs = async () => {
@@ -30,16 +53,24 @@ function Dashboard({ token, lastUpdated }) {
   }, [token, lastUpdated]); // re-fetch whenever lastUpdated changes
 
   const sortDocuments = (docs) => {
-    const statusOrder = { requested: 1, granted: 2, expired: 3, revoked: 4, denied: 5 };
-  
+    const statusOrder = {
+      requested: 1,
+      granted: 2,
+      expired: 3,
+      revoked: 4,
+      denied: 5,
+    };
+
     return docs.sort((a, b) => {
       const statusComparison = statusOrder[a.STATUS] - statusOrder[b.STATUS];
       if (statusComparison !== 0) return statusComparison;
-  
+
       //  compare expiry times for "granted"
-      const aExpiry = a.STATUS === 'granted' ? a.TOKEN_EXP_TS : Number.MAX_VALUE; // to push the ones with no expiry time to the end of the list
-      const bExpiry = b.STATUS === 'granted' ? b.TOKEN_EXP_TS : Number.MAX_VALUE;
-  
+      const aExpiry =
+        a.STATUS === "granted" ? a.TOKEN_EXP_TS : Number.MAX_VALUE; // to push the ones with no expiry time to the end of the list
+      const bExpiry =
+        b.STATUS === "granted" ? b.TOKEN_EXP_TS : Number.MAX_VALUE;
+
       return aExpiry - bExpiry; // sort by nearest expiry time first
     });
   };
@@ -59,6 +90,11 @@ function Dashboard({ token, lastUpdated }) {
   };
 
   const handleGrant = async (docId, targetUser) => {
+    setActionStatus((prevStatus) => ({
+      ...prevStatus,
+      [docId]: "in progress",
+    }));
+
     // must pass in expiry in seconds
     const expiryInSeconds = prompt("Enter validity time in seconds:", "36000"); // default ten hours
     if (!expiryInSeconds) return;
@@ -81,14 +117,15 @@ function Dashboard({ token, lastUpdated }) {
         setGrantStatus(`Error granting access to ${docId}.`);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-    
-       
-      
+
+      setActionStatus((prevStatus) => ({
+        ...prevStatus,
+        [docId]: "completed",
+      }));
       // Update grant status message upon successful completion
       setGrantStatus(`Access for ${docId} granted to ${targetUser}.`);
-      
     } catch (error) {
-      console.error("Error granting access:", error.message);
+      setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: "error" }));
     }
   };
 
@@ -97,25 +134,25 @@ function Dashboard({ token, lastUpdated }) {
       alert("Please enter both Document ID and Target User.");
       return;
     }
-    
-    setGrantStatus('');
-    setGrantStatus(`Granting access to ${directTargetUser} for ${directDocId} in progress.`);
-  
-    const expiryTime = directExpiryInSeconds.trim() ? parseInt(directExpiryInSeconds, 10) : 36000; // default ten hours
-  
-    handleGrant(directDocId, directTargetUser, expiryTime);
-  };
-  
-  
-  const handleInputDocIdClick = () => {
-    setDirectDocId("");
-  };
 
-  const handleInputTargetUserClick = () => {
-  setDirectTargetUser("");
+    setGrantStatus("");
+    setGrantStatus(
+      `Granting access in progress...`
+    );
+
+    const expiryTime = directExpiryInSeconds.trim()
+      ? parseInt(directExpiryInSeconds, 10)
+      : 36000; // default ten hours
+
+    handleGrant(directDocId, directTargetUser, expiryTime);
   };
 
   const handleDeny = async (docId, targetUser) => {
+    setActionStatus((prevStatus) => ({
+      ...prevStatus,
+      [docId]: "in progress",
+    }));
+
     const reason = prompt("Enter the reason for denial:");
     if (!reason) return; // must passs in reason
 
@@ -137,14 +174,20 @@ function Dashboard({ token, lastUpdated }) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result = await response.json();
-      console.log("Deny success:", result.message);
+      setActionStatus((prevStatus) => ({
+        ...prevStatus,
+        [docId]: "completed",
+      }));
     } catch (error) {
-      console.error("Error denying access:", error.message);
+      setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: "error" }));
     }
   };
 
   const handleRevoke = async (docId) => {
+    setActionStatus((prevStatus) => ({
+      ...prevStatus,
+      [docId]: "in progress",
+    }));
     const reason = prompt("Enter the reason for revocation:");
     if (!reason) return; // must passs in reason
 
@@ -165,10 +208,12 @@ function Dashboard({ token, lastUpdated }) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result = await response.json();
-      console.log("Revoke success:", result.message);
+      setActionStatus((prevStatus) => ({
+        ...prevStatus,
+        [docId]: "completed",
+      }));
     } catch (error) {
-      console.error("Error revoking access:", error.message);
+      setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: "error" }));
     }
   };
 
@@ -177,45 +222,48 @@ function Dashboard({ token, lastUpdated }) {
 
   return (
     <div>
-       
-     {/* direct sharing */}
-    <div>
-      <h2>Direct Sharing</h2>
-      <input
-        type="text"
-        value={directDocId}
-        onChange={(e) => setDirectDocId(e.target.value)}
-        onClick={handleInputDocIdClick}
-        placeholder="Document ID"
-      />
-      <input
-        type="text"
-        value={directTargetUser}
-        onChange={(e) => setDirectTargetUser(e.target.value)}
-        onClick={handleInputTargetUserClick}
-        placeholder="Target User"
-      />
-      <button onClick={handleDirectGrant} className="grant-button">Grant Access</button>
-      {grantStatus && <div>{grantStatus}</div>} {/* Display grant status message */}
-    </div>
+      {/* direct sharing */}
+      <div>
+        <h2>Direct Sharing</h2>
+        <input
+          type="text"
+          value={directDocId}
+          onChange={(e) => setDirectDocId(e.target.value)}
+          onClick={handleInputDocIdClick}
+          placeholder="Document ID"
+        />
+        <input
+          type="text"
+          value={directTargetUser}
+          onChange={(e) => setDirectTargetUser(e.target.value)}
+          onClick={handleInputTargetUserClick}
+          placeholder="Target User"
+        />
+        <button onClick={handleDirectGrant} className="grant-button">
+          Grant Access
+        </button>
+        {grantStatus && <div>{grantStatus}</div>}{" "}
+        {/* Display grant status message */}
+      </div>
 
       <div className="doc-list">
-        <h2>Shared Documents</h2>
-        <table>
-          <thead>
-            <tr>
+      <h2>Shared Documents</h2>
+      <table>
+        <thead>
+          <tr>
               <th>Document ID</th>
               <th>Target User</th>
               <th>Status</th>
               <th>Token ID</th>
               <th>Expiry</th>
               <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sharedDocs.map((doc) => (
-              <tr key={doc.DOC_ID} className="row-hover-effect">
-                <td>{doc.DOC_ID}</td>
+              <th>Status</th> {/* Status indicators column */}
+              </tr>
+        </thead>
+        <tbody>
+          {sharedDocs.map((doc) => (
+            <tr key={doc.DOC_ID} className="row-hover-effect">
+              <td>{doc.DOC_ID}</td>
                 <td>{doc.TARGET_USER}</td>
                 <td>{doc.STATUS}</td>
                 <td>{doc.TOKEN_ID}</td>
@@ -260,13 +308,13 @@ function Dashboard({ token, lastUpdated }) {
                   )}
                   {/* no buttons for "revoked" or "denied" status. according to contract logic, a new request can be placed */}
                 </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                <td>{renderStatusIndicator(doc.DOC_ID)}</td>
+                </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
-  );
+  </div>
+);
 }
-
 export default Dashboard;
