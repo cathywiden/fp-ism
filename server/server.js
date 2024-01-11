@@ -131,7 +131,7 @@ app.get("/document/:id", validateToken, async (req, res) => {
   }
 }); */
 
-app.post("/grant", validateToken, determineUserRole, async (req, res) => {
+app.post("/grant-access", validateToken, determineUserRole, async (req, res) => {
   logger.debug(`Request headers in /grant:, ${req.headers}`);
 
   if (req.user.role.includes('Sharer, Auditor')) {
@@ -162,8 +162,26 @@ logger.debug(`Grantor: ${req.user}`);
   }
 });
 
-
 // endpoint to revoke access
+app.post("/revoke-access", validateToken, determineUserRole, async (req, res) => {
+  const { documentId, reason } = req.body;
+
+  if (!req.user.role.includes('Sharer, Auditor')) {
+    return res.status(403).json({ error: "Unauthorized: Only user1 can revoke access." });
+  }
+
+  logger.debug(`Revoke access endpoint called with documentId: ${documentId}, reason: ${reason}`);
+
+  try {
+    await revokeAccess(documentId, reason);
+    res.status(200).json({ message: "Access revoked successfully" });
+  } catch (error) {
+    logger.error(`Error in revoke-access endpoint: ${error.message}`);
+    res.status(500).json({ error: "Error revoking access" });
+  }
+});
+
+/* // endpoint to revoke access
 app.post("/revoke-access", async (req, res) => {
   const { documentId, reason } = req.body;
   logger.debug(
@@ -177,7 +195,7 @@ app.post("/revoke-access", async (req, res) => {
     logger.error(`Error in revoke-access endpoint: ${error.message}`);
     res.status(500).send("Error revoking access");
   }
-});
+}); */
 
 
 app.post("/request-access", validateToken, determineUserRole, async (req, res) => {
@@ -203,7 +221,7 @@ app.post("/request-access", validateToken, determineUserRole, async (req, res) =
   }
 });
 
-app.post("/deny-access", async (req, res) => {
+/* app.post("/deny-access", async (req, res) => {
   const { documentId, userAddress, reason } = req.body;
   try {
     await denyRequest(documentId, userAddress, reason);
@@ -212,7 +230,27 @@ app.post("/deny-access", async (req, res) => {
     logger.error(`Error in /deny-access endpoint: ${error.message}`);
     res.status(500).send("Error denying access");
   }
+}); */
+
+
+app.post("/deny-access", validateToken, determineUserRole, async (req, res) => {
+  if (!req.user.role.includes('Sharer, Auditor')) {
+    return res.status(403).json({ error: "Unauthorized: Only user1 can deny access." });
+  }
+
+  const { documentId, targetUser, reason } = req.body;
+  logger.debug(`Deny access endpoint called with documentId: ${documentId}, targetUser: ${targetUser}, reason: ${reason}`);
+
+  try {
+    await denyRequest(documentId, targetUser, reason);
+    res.status(200).json({ message: "Access denied successfully" });
+  } catch (error) {
+    logger.error(`Error in deny-access endpoint: ${error.message}`);
+    res.status(500).json({ error: "Error denying access" });
+  }
 });
+
+
 
 /* // may be redundant, check
 app.post("/grant-access", async (req, res) => {

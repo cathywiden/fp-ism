@@ -32,13 +32,13 @@ function User1Dashboard({ token, lastUpdated }) {
       const statusComparison = statusOrder[a.STATUS] - statusOrder[b.STATUS];
       if (statusComparison !== 0) return statusComparison;
 
-      return a.TOKEN_ID - b.TOKEN_ID; // Assuming TOKEN_ID is numerical
+      return a.TOKEN_EXP_TS - b.TOKEN_EXP_TS;
     });
   };
 
   const calculateRemainingTime = (expiryTimestamp) => {
     const now = new Date();
-    const expiryDate = new Date(expiryTimestamp * 1000); // convert UNIX timestamp to JavaScript Date
+    const expiryDate = new Date(expiryTimestamp * 1000); // convert UNIX timestamp
     const diffInHours = (expiryDate - now) / 1000 / 3600;
 
     if (diffInHours < 1) {
@@ -51,11 +51,11 @@ function User1Dashboard({ token, lastUpdated }) {
   };
 
   const handleGrant = async (docId, targetUser) => {
-
-    const expiryInSeconds = prompt("Enter validity time in seconds:", "36000"); // default ten hours in seconds
-  if (!expiryInSeconds) return; 
+    // must pass in expiry in seconds
+    const expiryInSeconds = prompt("Enter validity time in seconds:", "36000"); // default ten hours
+    if (!expiryInSeconds) return;
     try {
-      const response = await fetch("http://localhost:3000/grant", {
+      const response = await fetch("http://localhost:3000/grant-access", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -80,9 +80,64 @@ function User1Dashboard({ token, lastUpdated }) {
     }
   };
 
-  // placeholders for now!
-  const handleDeny = (docId) => console.log("Deny", docId);
-  const handleRevoke = (docId) => console.log("Revoke", docId);
+  const handleDeny = async (docId, targetUser) => {
+    const reason = prompt("Enter the reason for denial:");
+    if (!reason) return; // must passs in reason
+
+    try {
+      const response = await fetch("http://localhost:3000/deny-access", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          documentId: docId,
+          targetUser: targetUser,
+          reason: reason,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("Deny success:", result.message);
+    } catch (error) {
+      console.error("Error denying access:", error.message);
+    }
+  };
+
+  const handleRevoke = async (docId) => {
+    const reason = prompt("Enter the reason for revocation:");
+    if (!reason) return; // must passs in reason
+
+    try {
+      const response = await fetch("http://localhost:3000/revoke-access", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          documentId: docId,
+          reason: reason,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("Revoke success:", result.message);
+    } catch (error) {
+      console.error("Error revoking access:", error.message);
+    }
+  };
+
+  // placeholder for now!
   const handleRenew = (docId) => console.log("Renew", docId);
 
   return (
@@ -122,7 +177,12 @@ function User1Dashboard({ token, lastUpdated }) {
                       >
                         Grant
                       </button>
-                      {/* other buttons */}
+                      <button
+                        onClick={() => handleDeny(doc.DOC_ID, doc.TARGET_USER)}
+                        className="deny-button"
+                      >
+                        Deny
+                      </button>
                     </>
                   )}
                   {doc.STATUS === "expired" && (

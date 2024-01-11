@@ -22,8 +22,6 @@ async function denyRequest(documentId, targetUser, reason) {
       targetUser
     );
 
-    logger.debug(`requestInfo in grantAccess: ${JSON.stringify(requestInfo)}`);
-
     if (requestInfo) {
       logger.debug("Found existing request, updating it.");
       logger.debug(`requestInfo in denyAccess: ${JSON.stringify(requestInfo)}`);

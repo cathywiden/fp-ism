@@ -4,7 +4,6 @@ const jwt = require("jsonwebtoken");
 const { checkAccess } = require("../utilities/smartContractUtils");
 const { getUserWalletAddress } = require("../utilities/extractWalletAddress");
 
-
 async function validateToken(req, res, next) {
 
   // parse JWT from the auth header
@@ -21,13 +20,11 @@ async function validateToken(req, res, next) {
       req.user = decoded;
       console.log("Decoded Token:", decoded);  
 
-
-      // skip checkAccess for /request-access and /grant routes
-      if (req.originalUrl === "/request-access" || req.originalUrl === "/grant") {
+      // skip checkAccess for api routes (which checks document access tokens!) 
+      if (req.originalUrl === "/request-access" || req.originalUrl === "/grant" || req.originalUrl === "/revoke-access" || req.originalUrl === "/deny-access") {
         return next();
       }
       
-
       // check access with wallet address from token
       const hasAccess = await checkAccess(
         req.user.walletAddress,
@@ -43,13 +40,11 @@ async function validateToken(req, res, next) {
     }
   }
 
-  // fallback for direct backend queries without JWT
-  // skip checkAccess for /request-access and /grant routes
-  if (req.originalUrl === "/request-access" || req.originalUrl === "/grant") {
+  // skip checkAccess for API routes
+  if (req.originalUrl === "/request-access" || req.originalUrl === "/grant" || req.originalUrl === "/revoke-access" || req.originalUrl === "/deny-access") {
     return next();
   }
   
-
   const userAddress = await getUserWalletAddress(process.env.DB_USER2);
   if (!userAddress) {
     return res.status(500).send("Error fetching user's wallet address");
