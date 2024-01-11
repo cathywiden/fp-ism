@@ -26,15 +26,20 @@ function User1Dashboard({ token, lastUpdated }) {
   }, [token, lastUpdated]); // re-fetch whenever lastUpdated changes
 
   const sortDocuments = (docs) => {
-    const statusOrder = { requested: 1, granted: 2, revoked: 3, expired: 4 };
-
+    const statusOrder = { requested: 1, granted: 2, expired: 3, revoked: 4, denied: 5 };
+  
     return docs.sort((a, b) => {
       const statusComparison = statusOrder[a.STATUS] - statusOrder[b.STATUS];
       if (statusComparison !== 0) return statusComparison;
-
-      return a.TOKEN_EXP_TS - b.TOKEN_EXP_TS;
+  
+      //  compare expiry times for "granted"
+      const aExpiry = a.STATUS === 'granted' ? a.TOKEN_EXP_TS : Number.MAX_VALUE; // to push the ones with no expiry time to the end of the list
+      const bExpiry = b.STATUS === 'granted' ? b.TOKEN_EXP_TS : Number.MAX_VALUE;
+  
+      return aExpiry - bExpiry; // Sort by nearest expiry time first
     });
   };
+  
 
   const calculateRemainingTime = (expiryTimestamp) => {
     const now = new Date();
@@ -201,15 +206,7 @@ function User1Dashboard({ token, lastUpdated }) {
                       Revoke
                     </button>
                   )}
-                  {doc.STATUS === "revoked" && (
-                    <button
-                      onClick={() => handleGrant(doc.DOC_ID)}
-                      className="grant-button"
-                    >
-                      Grant Again
-                    </button>
-                  )}
-                  {/* no buttons for 'denied' status. according to contract logic, a new request can be placed */}
+                  {/* no buttons for "revoked" or "denied" status. according to contract logic, a new request can be placed */}
                 </td>
               </tr>
             ))}

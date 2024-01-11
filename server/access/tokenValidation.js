@@ -21,7 +21,7 @@ async function validateToken(req, res, next) {
       console.log("Decoded Token:", decoded);  
 
       // skip checkAccess for api routes (which checks document access tokens!) 
-      if (req.originalUrl === "/request-access" || req.originalUrl === "/grant" || req.originalUrl === "/revoke-access" || req.originalUrl === "/deny-access") {
+      if (req.originalUrl === "/request-access" || req.originalUrl === "/grant-access" || req.originalUrl === "/revoke-access" || req.originalUrl === "/deny-access") {
         return next();
       }
       
@@ -41,7 +41,7 @@ async function validateToken(req, res, next) {
   }
 
   // skip checkAccess for API routes
-  if (req.originalUrl === "/request-access" || req.originalUrl === "/grant" || req.originalUrl === "/revoke-access" || req.originalUrl === "/deny-access") {
+  if (req.originalUrl === "/request-access" || req.originalUrl === "/grant-access" || req.originalUrl === "/revoke-access" || req.originalUrl === "/deny-access") {
     return next();
   }
   
