@@ -64,13 +64,14 @@ async function getAllSharedDocs(userType) {
   }
 }
 
-// purge expired tokens from DB
+// purge expired docs from DB
 // call Oracle procedure
 async function expireDocuments() {
   let connection;
   try {
   connection = await getConnection("user1");
 
+  // procedure set in Oracle will set status to "expired" based on timestamps
       await connection.execute(`BEGIN blockchain_expire_documents; END;`);
 
       await connection.commit();
