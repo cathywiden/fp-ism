@@ -5,6 +5,8 @@ const { getConnection } = require("./dbConnector");
 const { connectToHeap } = require("./heapConnect");
 require("dotenv").config({ path: "../.env" });
 
+const EXPIRE_DOCUMENTS_INTERVAL =  100000; 
+
 // query document by document_id
 async function getDocumentById(document_id, userType) {
   let connection;
@@ -35,20 +37,20 @@ async function getAllSharedDocs(userType) {
 
   try {
     connection = await getConnection(userType);
-    let query, params;
+    let query;
 
     if (userType === "user1") {
       query = `SELECT DOC_ID, TARGET_USER, STATUS, TOKEN_ID, TOKEN_EXP_TS FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS}`;
-      params = [];
+    
     } else if (userType === "user2") {
-      query = `SELECT DOC_ID FROM ${process.env.DB_USER2}.${process.env.DB_TABLE_SHARED_DOCS}`;
-      params = [];
+      query = `SELECT DOC_ID, TOKEN_EXP_TS FROM ${process.env.DB_USER2}.${process.env.DB_TABLE_SHARED_DOCS}`;
+     
     } else {
-      throw new Error('Invalid user type');
+      throw new Error("Invalid user type");
     }
 
     logger.debug(`Executing query: ${query}`);
-    const result = await connection.execute(query, params);
+    const result = await connection.execute(query);
 
     console.log("Query result:", result.rows);
     return result.rows;
@@ -61,6 +63,31 @@ async function getAllSharedDocs(userType) {
     }
   }
 }
+
+// purge expired tokens from DB
+// call Oracle procedure
+async function expireDocuments() {
+  let connection;
+  try {
+  connection = await getConnection("user1");
+
+      await connection.execute(`BEGIN blockchain_expire_documents; END;`);
+
+      await connection.commit();
+      
+
+      console.log("expireDocuments procedure executed successfully.");
+  } catch (err) {
+      console.error("Error executing expireDocuments procedure:", err);
+  } finally {
+      if (connection) {
+          try {
+              await connection.close();
+          } catch (err) {
+              console.error("Error closing connection:", err);
+          }
+      }
+  }}
 
 
 // execute Oracle procedure blockchain_mock_checksum
@@ -390,6 +417,7 @@ module.exports = {
   logRequestDB,
   logDenyInDB,
   updateExistingRequestForDeny,
-  getAllSharedDocs
-  
+  getAllSharedDocs,
+  expireDocuments,
+  EXPIRE_DOCUMENTS_INTERVAL
 };

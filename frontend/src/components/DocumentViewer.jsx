@@ -19,7 +19,6 @@ function DocumentViewer({ token }) {
       if (response.ok) {
         const data = await response.json();
         setSharedDocs(data);
-
       } else {
         // errors
       }

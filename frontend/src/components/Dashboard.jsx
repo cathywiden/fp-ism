@@ -15,7 +15,6 @@ function User1Dashboard({ token, lastUpdated }) {
       if (response.ok) {
         const data = await response.json();
         setSharedDocs(data);
-        
       } else {
         // errors?
       }
@@ -23,6 +22,22 @@ function User1Dashboard({ token, lastUpdated }) {
 
     fetchSharedDocs();
   }, [token, lastUpdated]); // re-fetch whenever lastUpdated changes
+
+
+  const calculateRemainingTime = (expiryTimestamp) => {
+    const now = new Date();
+    const expiryDate = new Date(expiryTimestamp * 1000); // convert UNIX timestamp to JavaScript Date
+    const diffInHours = (expiryDate - now) / 1000 / 3600;
+
+    if (diffInHours < 1) {
+      return "<1h";
+    } else if (diffInHours < 24) {
+      return `${Math.round(diffInHours)}h`;
+    } else {
+      return `${Math.round(diffInHours / 24)}d`;
+    }
+  };
+
   return (
     <div>
       <h2>Shared Documents</h2>
@@ -43,7 +58,9 @@ function User1Dashboard({ token, lastUpdated }) {
               <td>{doc.TARGET_USER}</td>
               <td>{doc.STATUS}</td>
               <td>{doc.TOKEN_ID}</td>
-              <td>{doc.EXPIRY}</td>
+              <td>
+                {doc.STATUS === "granted" ? calculateRemainingTime(doc.TOKEN_EXP_TS) : "N/A"}
+              </td>
             </tr>
           ))}
         </tbody>

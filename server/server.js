@@ -22,6 +22,8 @@ const { determineUserRole } = require("./middlewares/roleDetermination");
 const validateJWT = require("./middlewares/validateJWT");
 const { generateToken } = require("./utilities/JWTGenerator");
 const { getAllSharedDocs } = require("./utilities/dbUtils");
+ const { expireDocuments,
+  EXPIRE_DOCUMENTS_INTERVAL} = require("./utilities/dbUtils"); 
 
 const express = require("express");
 const cors = require("cors");
@@ -192,7 +194,7 @@ app.post("/grant-access", async (req, res) => {
   }
 });
 
-app.get("/shared-docs", validateJWT, async (req, res) => {
+/* app.get("/shared-docs", validateJWT, async (req, res) => {
   try {
     const userType = req.user.role.includes("Receiver") ? "user2" : "user1";
     const sharedDocs = await getAllSharedDocs(userType);
@@ -200,7 +202,40 @@ app.get("/shared-docs", validateJWT, async (req, res) => {
   } catch (error) {
     res.status(500).send("Error fetching shared documents");
   }
+}); */
+
+app.get("/shared-docs", validateJWT, async (req, res) => {
+  try {
+    const userType = req.user.role.includes("Receiver") ? "user2" : "user1";
+    let sharedDocs = await getAllSharedDocs(userType);
+
+    const currentTime = Math.floor(Date.now() / 1000); 
+
+    if (userType === "user2") {
+      // do not display expired documents for user2
+      sharedDocs = sharedDocs.filter(doc => doc.TOKEN_EXP_TS > currentTime);
+    } else {
+      // for user1:
+      // mark documents as expired based on timestamp
+      sharedDocs = sharedDocs.map(doc => {
+        if (doc.STATUS === "granted" && doc.TOKEN_EXP_TS < currentTime) {
+          return { ...doc, STATUS: "expired" };
+        }
+        return doc;
+      });
+    }
+
+    res.json(sharedDocs);
+    console.log(sharedDocs);
+
+  } catch (error) {
+    console.error("Error in /shared-docs endpoint:", error);
+    res.status(500).send("Error fetching shared documents");
+  }
 });
+
+
+
 
 async function startServer() {
   try {
@@ -208,9 +243,9 @@ async function startServer() {
     logger.info("Database pool initialized successfully.");
     app.listen(port, () => {
       logger.info(`Server running on port ${port}`);
-      // start polling
       setInterval(checkSharedDocs, POLLING_INTERVAL);
       setInterval(isTamperedWithInDB, TAMPER_POLLING_INTERVAL);
+      setInterval(expireDocuments, EXPIRE_DOCUMENTS_INTERVAL);
     });
   } catch (error) {
     logger.error("Error starting the server:", error);
