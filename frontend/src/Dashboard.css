@@ -37,6 +37,7 @@ th, td {
 
 .doc-list {
   margin-top: 50px;
+  margin-bottom: 30px;
 }
 
 .doc-list table {
@@ -52,4 +53,10 @@ th, td {
   background-color: #fff; 
   z-index: 10;
   height: 50px;
+}
+
+input {
+  margin-right: 5px;
+  border-radius: 3px;
+  border: 1px solid slategray;
 }

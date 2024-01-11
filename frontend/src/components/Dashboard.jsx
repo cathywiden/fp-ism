@@ -3,8 +3,12 @@
 import React, { useState, useEffect } from "react";
 import "../Dashboard.css";
 
-function User1Dashboard({ token, lastUpdated }) {
+function Dashboard({ token, lastUpdated }) {
   const [sharedDocs, setSharedDocs] = useState([]);
+  const [directDocId, setDirectDocId] = useState('');
+  const [directTargetUser, setDirectTargetUser] = useState('');
+  const [directExpiryInSeconds, setDirectExpiryInSeconds] = useState('');
+  const [grantStatus, setGrantStatus] = useState('');
 
   useEffect(() => {
     const fetchSharedDocs = async () => {
@@ -36,10 +40,9 @@ function User1Dashboard({ token, lastUpdated }) {
       const aExpiry = a.STATUS === 'granted' ? a.TOKEN_EXP_TS : Number.MAX_VALUE; // to push the ones with no expiry time to the end of the list
       const bExpiry = b.STATUS === 'granted' ? b.TOKEN_EXP_TS : Number.MAX_VALUE;
   
-      return aExpiry - bExpiry; // Sort by nearest expiry time first
+      return aExpiry - bExpiry; // sort by nearest expiry time first
     });
   };
-  
 
   const calculateRemainingTime = (expiryTimestamp) => {
     const now = new Date();
@@ -69,20 +72,47 @@ function User1Dashboard({ token, lastUpdated }) {
         body: JSON.stringify({
           documentId: docId,
           targetUser: targetUser,
-          documentHash: "TESTHASH",
+          documentHash: "",
           expiryInSeconds: parseInt(expiryInSeconds, 10), // convert string to number
         }),
       });
 
       if (!response.ok) {
+        setGrantStatus(`Error granting access to ${docId}.`);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
-      const result = await response.json();
-      console.log("Grant success:", result.message);
+    
+       
+      
+      // Update grant status message upon successful completion
+      setGrantStatus(`Access for ${docId} granted to ${targetUser}.`);
+      
     } catch (error) {
       console.error("Error granting access:", error.message);
     }
+  };
+
+  const handleDirectGrant = () => {
+    if (!directDocId.trim() || !directTargetUser.trim()) {
+      alert("Please enter both Document ID and Target User.");
+      return;
+    }
+    
+    setGrantStatus('');
+    setGrantStatus(`Granting access to ${directTargetUser} for ${directDocId} in progress.`);
+  
+    const expiryTime = directExpiryInSeconds.trim() ? parseInt(directExpiryInSeconds, 10) : 36000; // default ten hours
+  
+    handleGrant(directDocId, directTargetUser, expiryTime);
+  };
+  
+  
+  const handleInputDocIdClick = () => {
+    setDirectDocId("");
+  };
+
+  const handleInputTargetUserClick = () => {
+  setDirectTargetUser("");
   };
 
   const handleDeny = async (docId, targetUser) => {
@@ -147,6 +177,28 @@ function User1Dashboard({ token, lastUpdated }) {
 
   return (
     <div>
+       
+     {/* direct sharing */}
+    <div>
+      <h2>Direct Sharing</h2>
+      <input
+        type="text"
+        value={directDocId}
+        onChange={(e) => setDirectDocId(e.target.value)}
+        onClick={handleInputDocIdClick}
+        placeholder="Document ID"
+      />
+      <input
+        type="text"
+        value={directTargetUser}
+        onChange={(e) => setDirectTargetUser(e.target.value)}
+        onClick={handleInputTargetUserClick}
+        placeholder="Target User"
+      />
+      <button onClick={handleDirectGrant} className="grant-button">Grant Access</button>
+      {grantStatus && <div>{grantStatus}</div>} {/* Display grant status message */}
+    </div>
+
       <div className="doc-list">
         <h2>Shared Documents</h2>
         <table>
@@ -217,4 +269,4 @@ function User1Dashboard({ token, lastUpdated }) {
   );
 }
 
-export default User1Dashboard;
+export default Dashboard;

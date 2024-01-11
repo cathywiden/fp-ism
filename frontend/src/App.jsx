@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { jwtDecode } from 'jwt-decode';
 import DocumentViewer from './components/DocumentViewer';
 import LoginForm from "./components/LoginForm";
-import User1Dashboard from './components/Dashboard';
+import Dashboard from './components/Dashboard';
 import "./App.css";
 
 function App() {
@@ -51,7 +51,7 @@ function App() {
           <div className="welcome">
           Welcome {user.username}!</div>
           {renderViewer && <DocumentViewer token={localStorage.getItem('token')} />}
-          {renderDashboard && <User1Dashboard token={localStorage.getItem('token')} lastUpdated={lastUpdated} />}
+          {renderDashboard && <Dashboard token={localStorage.getItem('token')} lastUpdated={lastUpdated} />}
           <div className="logout-container">
             <button onClick={logout}>Logout</button>
           </div>
