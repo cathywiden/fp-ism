@@ -110,7 +110,7 @@ app.get("/document/:id", validateToken, async (req, res) => {
   }
 });
 
-app.post("/share", async (req, res) => {
+/* app.post("/grant", async (req, res) => {
   logger.info(`Received request: ${JSON.stringify(req.body)}`);
   try {
     const { documentId, targetUser, documentHash, expiryInSeconds } = req.body;
@@ -129,7 +129,39 @@ app.post("/share", async (req, res) => {
     logger.error(`Error in share endpoint: ${error}`);
     res.status(500).send("Error in document sharing");
   }
+}); */
+
+app.post("/grant", validateToken, determineUserRole, async (req, res) => {
+  logger.debug(`Request headers in /grant:, ${req.headers}`);
+
+  if (req.user.role.includes('Sharer, Auditor')) {
+    try {
+logger.debug(`Grantor: ${req.user}`);
+      logger.debug(`Grantor user role: ${req.user.role}`);
+
+      const { documentId, targetUser, documentHash, expiryInSeconds } = req.body;
+      await grantAccess(
+        documentId,
+        targetUser,
+        documentHash,
+        expiryInSeconds,
+        true
+      );
+      res.status(200).json({ message: "Document shared successfully" });
+    } catch (error) {
+      logger.error(`Error in grant endpoint: ${error}`);
+      if (error.code === "CALL_EXCEPTION") {
+        res.status(500).json({ error: "Blockchain transaction failed", details: error.message });
+      } else {
+        logger.error(`Error in grant endpoint: ${error.message}`);
+    res.status(500).json({ error: error.message });
+      }
+    }
+  } else {
+    res.status(403).json({ error: "Unauthorized: Only user1 can grant access." });
+  }
 });
+
 
 // endpoint to revoke access
 app.post("/revoke-access", async (req, res) => {
@@ -182,7 +214,7 @@ app.post("/deny-access", async (req, res) => {
   }
 });
 
-// may be redundant, check
+/* // may be redundant, check
 app.post("/grant-access", async (req, res) => {
   try {
     const requestData = req.body;
@@ -192,7 +224,7 @@ app.post("/grant-access", async (req, res) => {
     logger.error(`Error in /grant-access endpoint: ${error.message}`);
     res.status(500).send("Error granting access");
   }
-});
+}); */
 
 /* app.get("/shared-docs", validateJWT, async (req, res) => {
   try {

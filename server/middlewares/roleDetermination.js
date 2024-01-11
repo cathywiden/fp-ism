@@ -46,8 +46,9 @@ async function determineUserRole(req, res, next) {
       }
     }
   } else {
-    next(); // skip this middleware if req.user is not set (backend, non-JWT request)
+    next(); // skip to next middleware or route handler
   }
 }
+
 
 module.exports = { determineUserRole };

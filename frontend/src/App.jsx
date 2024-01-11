@@ -5,6 +5,7 @@ import { jwtDecode } from 'jwt-decode';
 import DocumentViewer from './components/DocumentViewer';
 import LoginForm from "./components/LoginForm";
 import User1Dashboard from './components/Dashboard';
+import "./App.css";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -47,10 +48,13 @@ function App() {
     <div className="App">
       {user ? (
         <div>
-          Welcome {user.username}!
+          <div className="welcome">
+          Welcome {user.username}!</div>
           {renderViewer && <DocumentViewer token={localStorage.getItem('token')} />}
           {renderDashboard && <User1Dashboard token={localStorage.getItem('token')} lastUpdated={lastUpdated} />}
-          <button onClick={logout}>Logout</button>
+          <div className="logout-container">
+            <button onClick={logout}>Logout</button>
+          </div>
         </div>
       ) : (
         <LoginForm onLogin={login} />

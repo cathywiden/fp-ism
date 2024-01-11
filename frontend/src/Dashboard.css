@@ -1,8 +1,15 @@
 
+.row-hover-effect:hover td:first-child {
+  border-top-left-radius: 3px;
+  border-bottom-left-radius: 3px;
+}
+
+.row-hover-effect:hover td:last-child {
+  border-top-right-radius: 3px;
+  border-bottom-right-radius: 3px;
+}
 
 .row-hover-effect:hover {
-  border: 1px solid rgb(144, 112, 136) !important;
-  border-radius: 3px;
   background-color: rgb(239, 239, 243);
   cursor: pointer;
 }
@@ -12,17 +19,35 @@ th, td {
   padding: 2px;
 }
 
-.grant-button, .deny-button {
+.grant-button, .deny-button, .revoke-button, .renew-button {
   border-radius: 3px;
+  margin-right: 5px;
 }
-.grant-button {
+.grant-button, .renew-button {
   background-color: white;
   color: rgb(10, 107, 65);
   border: 1px solid rgb(10, 107, 65);
 }
 
-.deny-button {
+.deny-button, .revoke-button {
   background-color: white;
   color: rgb(220, 10, 48);
   border: 1px solid rgb(220, 10, 48);
+}
+
+.doc-list {
+  margin-top: 50px;
+}
+
+.doc-list table {
+  width: 90%; 
+  margin: 15px;
+  border-collapse: collapse;
+}
+
+.doc-list thead th {
+  position: sticky;
+  top: 0;
+  background-color: #fff; 
+  z-index: 10;
 }

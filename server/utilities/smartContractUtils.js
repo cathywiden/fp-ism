@@ -29,65 +29,49 @@ async function mintAccessToken(
 ) {
   logger.info("Minting NFT: access data sent to smart contract");
   try {
+    // set a manual gas limit
+    const gasLimit = ethers.utils.hexlify(1500000);
+    logger.debug(`mintAccessToken gas limit set to: ${gasLimit}`);
+
     logger.info(`Parameters: 
-      targetUserAddress: ${targetUserAddress}, 
-      documentId: ${documentId}, 
-      documentHash: ${documentHash}, 
-      expiryInSeconds: ${expiryInSeconds}`);
+          targetUserAddress: ${targetUserAddress}, 
+          documentId: ${documentId}, 
+          documentHash: ${documentHash}, 
+          expiryInSeconds: ${expiryInSeconds}`);
 
     const transaction = await DAC.mintAccess(
       targetUserAddress,
       documentId,
       documentHash,
-      expiryInSeconds
+      expiryInSeconds,
+      { gasLimit }
     );
     const receipt = await transaction.wait();
-
     logger.debug(`Transaction receipt: ${JSON.stringify(receipt)}`);
 
-    // massive debugging
-    // check if the AccessGranted event is present in the receipt
+    // find the AccessGranted event in the receipt
     const tokenIdEvent = receipt.events.find(
       (event) => event.event === "AccessGranted"
     );
 
-    logger.debug(`GrantAccess.js tokenIdEvent.args: ${tokenIdEvent.args}`);
-
-    if (!tokenIdEvent.args.tokenId) {
-      console.error("tokenId undefined in event args");
+    if (!tokenIdEvent) {
+      throw new Error("AccessGranted event not found in transaction receipt.");
     }
 
-    if (tokenIdEvent) {
-      logger.debug(
-        `SmartContractUtils.js AccessGranted event found: ${JSON.stringify(
-          tokenIdEvent
-        )}`
-      );
-
-      const tokenIdBigNumber = tokenIdEvent.args.tokenId;
-
-      logger.debug(
-        `SmartContractUtils.js Type of tokenIdBigNumber before conversion: ${typeof tokenIdBigNumber} - Value: ${tokenIdBigNumber}`
-      );
-
-      const tokenIdNumber = tokenIdBigNumber.toNumber();
-
-      logger.debug(
-        `SmartContractUtils.js Type of tokenIdNumber after conversion: ${typeof tokenIdNumber} - Value: ${tokenIdNumber}`
-      );
-
-      return { transactionHash: transaction.hash, tokenId: tokenIdNumber };
-    } else {
-      logger.error(
-        `SmartContractUtils.js AccessGranted event not found in transaction receipt.`
-      );
-      return { transactionHash: transaction.hash, tokenId: null };
-    }
-  } catch (error) {
-    logger.error(
-      `SmartContractUtils.js Error minting access token: ${error.message}`
+    const tokenIdBigNumber = tokenIdEvent.args.tokenId;
+    logger.debug(
+      `Type of tokenIdBigNumber before conversion: ${typeof tokenIdBigNumber} - Value: ${tokenIdBigNumber}`
     );
-    return { transactionHash: null, tokenId: null };
+
+    const tokenIdNumber = tokenIdBigNumber.toNumber();
+    logger.debug(
+      `Type of tokenIdNumber after conversion: ${typeof tokenIdNumber} - Value: ${tokenIdNumber}`
+    );
+
+    return { transactionHash: transaction.hash, tokenId: tokenIdNumber };
+  } catch (error) {
+    logger.error(`Error minting access token: ${error.message}`);
+    throw error;
   }
 }
 
@@ -97,7 +81,7 @@ async function revokeAccessToken(tokenId, reason) {
   );
   try {
     // set a manual gas limit
-    const gasLimit = ethers.utils.hexlify(1000000);
+    const gasLimit = ethers.utils.hexlify(1500000);
     logger.debug(`SmartContractUtils.js Gas limit set to: ${gasLimit}`);
 
     // revoke access
@@ -172,8 +156,6 @@ async function requestBlockchainAccess(documentId, requesterAddress) {
   }
 }
 
-
-
 async function handleDenyRequest(documentId, targetUser, reason) {
   try {
     const gasLimit = ethers.utils.hexlify(1000000);
@@ -183,23 +165,18 @@ async function handleDenyRequest(documentId, targetUser, reason) {
       gasLimit,
     });
     const transactionHash = transaction.hash;
-    
+
     // logger.debug(`Transaction hash: ${transactionHash}`);
-    
-    
+
     logger.info(
       `Access denied for user ${targetUser} and document ${documentId}. Transaction hash: ${transactionHash}`
     );
     return transactionHash;
-
   } catch (error) {
     logger.error(`Error in handleDenyRequest: ${error.message}`);
-    throw error; 
+    throw error;
   }
 }
-
-
-
 
 // logs tampering of a document to the blockchain
 async function logTampering(documentId, oldHash, newHash) {

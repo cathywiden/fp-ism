@@ -41,9 +41,10 @@ async function grantAccess(
     );
 
     if (!transactionHash || tokenId === null || tokenId === undefined) {
-      logger.error("Token minting failed. No transaction hash or token ID received.");
-      return;
-    }
+      // logger.error("Token minting failed. No transaction hash or token ID received.");
+      // return;
+      throw new Error("Token minting failed.");
+    } 
 
     // check if the request already exists and is in "requested" status
     if (requestInfo && requestInfo.requestTxHash) {
