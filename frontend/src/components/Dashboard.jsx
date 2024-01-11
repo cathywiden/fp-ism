@@ -18,7 +18,7 @@ function Dashboard({ token, lastUpdated }) {
   const handleInputTargetUserClick = () => {
     setDirectTargetUser("");
   };
-  // Function to render the status indicator based on the action status
+  // status indicator based on action status
   const renderStatusIndicator = (docId) => {
     const status = actionStatus[docId];
     switch (status) {
@@ -136,9 +136,7 @@ function Dashboard({ token, lastUpdated }) {
     }
 
     setGrantStatus("");
-    setGrantStatus(
-      `Granting access in progress...`
-    );
+    setGrantStatus(`Granting access in progress...`);
 
     const expiryTime = directExpiryInSeconds.trim()
       ? parseInt(directExpiryInSeconds, 10)
@@ -243,27 +241,27 @@ function Dashboard({ token, lastUpdated }) {
           Grant Access
         </button>
         {grantStatus && <div>{grantStatus}</div>}{" "}
-        {/* Display grant status message */}
+        {/* display grant status message */}
       </div>
 
       <div className="doc-list">
-      <h2>Shared Documents</h2>
-      <table>
-        <thead>
-          <tr>
+        <h2>Shared Documents</h2>
+        <table>
+          <thead>
+            <tr>
               <th>Document ID</th>
               <th>Target User</th>
               <th>Status</th>
               <th>Token ID</th>
               <th>Expiry</th>
               <th>Actions</th>
-              <th>Status</th> {/* Status indicators column */}
-              </tr>
-        </thead>
-        <tbody>
-          {sharedDocs.map((doc) => (
-            <tr key={doc.DOC_ID} className="row-hover-effect">
-              <td>{doc.DOC_ID}</td>
+              <th>Status</th> {/* status indicators column */}
+            </tr>
+          </thead>
+          <tbody>
+            {sharedDocs.map((doc) => (
+              <tr key={doc.DOC_ID} className="row-hover-effect">
+                <td>{doc.DOC_ID}</td>
                 <td>{doc.TARGET_USER}</td>
                 <td>{doc.STATUS}</td>
                 <td>{doc.TOKEN_ID}</td>
@@ -309,12 +307,12 @@ function Dashboard({ token, lastUpdated }) {
                   {/* no buttons for "revoked" or "denied" status. according to contract logic, a new request can be placed */}
                 </td>
                 <td>{renderStatusIndicator(doc.DOC_ID)}</td>
-                </tr>
-          ))}
-        </tbody>
-      </table>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
-  </div>
-);
+  );
 }
 export default Dashboard;
