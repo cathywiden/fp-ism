@@ -1,6 +1,7 @@
 // frontend/src/components/DocumentViewer.jsx
 
 import React, { useState, useEffect } from "react";
+import "../DocumentViewer.css";
 
 function DocumentViewer({ token }) {
   const [sharedDocs, setSharedDocs] = useState([]);
@@ -89,7 +90,7 @@ function DocumentViewer({ token }) {
   };
 
   return (
-    <div>
+    <div className="doc-list">
       {/* combined input field &&dropdown list */}
       <input
         list="docList"
@@ -104,8 +105,12 @@ function DocumentViewer({ token }) {
         ))}
       </datalist>
 
-      <button onClick={fetchDocument}>Fetch Document</button>
-      <button onClick={() => requestDocument()}>Request Document</button>
+      <button onClick={fetchDocument} className="button">
+        Fetch Document
+      </button>
+      <button onClick={() => requestDocument()} className="button">
+        Request Document
+      </button>
       {tamperWarning && (
         <div style={{ color: "red", marginTop: "10px", marginBottom: "10px" }}>
           {tamperWarning}
@@ -116,7 +121,7 @@ function DocumentViewer({ token }) {
           {requestStatus}
         </div>
       )}
-      <div>{xmlData}</div>
+      <div className="XMLdata">{xmlData}</div>
     </div>
   );
 }

@@ -25,7 +25,7 @@ function Dashboard({ token, lastUpdated }) {
       case "in progress":
         return <span>...</span>;
       case "completed":
-        return <span className="green-checkmark">✔️</span>;
+        return <span className="checkmark">✔</span>;
       case "error":
         return <span className="red-cross">❌</span>;
       default:
