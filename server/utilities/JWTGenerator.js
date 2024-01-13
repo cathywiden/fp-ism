@@ -5,7 +5,7 @@ const logger = require("./logger");
 const jwt = require("jsonwebtoken");
 
 function generateToken(user) {
-  console.log("JWTGenerator.js Generating token for user:", user);
+  logger.info(`Generating JWT for user:, ${user}`);
 
   const payload = {
     username: user.username,
@@ -14,7 +14,7 @@ function generateToken(user) {
   };
 
   const secretKey = process.env.JWT_SECRET_KEY;
-  logger.debug(`JWTGenerator.js Secret key at token generation: ${secretKey}`);
+  logger.debug(`Secret key at token generation: ${secretKey}`);
 
   const options = { expiresIn: "20d" };
   return jwt.sign(payload, secretKey, options);

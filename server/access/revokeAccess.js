@@ -4,19 +4,15 @@ require("dotenv").config({ path: "../.env" });
 const logger = require("../utilities/logger");
 
 const { getConnection } = require("../utilities/dbConnector");
-const { revokeAccessToken } = require("../utilities/smartContractUtils");
-const { getTokenId } = require("./tokenUtils");
+const { revokeAccessOnChain } = require("../utilities/smartContractUtils");
+const { getTokenId } = require("../utilities/getTokenId");
 
 async function revokeAccess(documentId, reason, targetUser) {
   let connection;
   try {
     connection = await getConnection("user1");
 
-    logger.debug("revokeAccess.js Starting revokeAccess function");
-
     const tokenId = await getTokenId(documentId);
-
-    console.log(reason);
 
     logger.info(`revokeAccess.js Token ID for revocation: ${tokenId}`);
 
@@ -28,7 +24,7 @@ async function revokeAccess(documentId, reason, targetUser) {
     }
 
     const revokeTime = Math.floor(Date.now() / 1000);
-    const transactionHash = await revokeAccessToken(tokenId, reason);
+    const transactionHash = await revokeAccessOnChain(tokenId, reason);
     logger.info(
       `revokeAccess.js Transaction hash for revocation: ${transactionHash}`
     );

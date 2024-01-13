@@ -9,11 +9,12 @@ contract DocumentAccessControl is ERC721, Ownable {
         address initialOwner
     ) ERC721("DocumentAccessControl", "DAC") Ownable(initialOwner) {}
 
-    mapping(uint256 => uint256) private _tokenExpiryTimes;
     mapping(string => uint256) private _documentToTokenId;
     mapping(uint256 => string) private _tokenIdToDocumentId;
     mapping(uint256 => string) private _tokenHashes;
     mapping(bytes32 => Request) public accessRequests;
+    mapping(string => uint256[]) private _revokedTokenIds;
+    mapping(uint256 => TokenData) private _tokensData;
 
     uint256 private _tokenIds;
 
@@ -25,7 +26,7 @@ contract DocumentAccessControl is ERC721, Ownable {
     address private _backupOwner;
 
     enum RequestStatus {
-        None, // default value, used to indicate no request exists
+        None, // default value: no request exists
         Pending,
         Approved,
         Rejected
@@ -41,6 +42,20 @@ contract DocumentAccessControl is ERC721, Ownable {
         uint256 expirationTime;
         bool isInitialized;
         uint256 tokenId; // link tokens to requests
+    }
+
+    struct TokenHistory {
+        uint256 timestamp;
+        string action; // "Granted", "Revoked", etc.
+        string reason; // reason for the action, especially for revocations
+    }
+
+    struct TokenData {
+        address tokenOwner;
+        uint256 expiryTime;
+        bool isRevoked;
+        uint256 revokedTimestamp;
+        TokenHistory[] history; // Array to store the history of the token
     }
 
     // events declaration
@@ -60,14 +75,19 @@ contract DocumentAccessControl is ERC721, Ownable {
     );
 
     event TokenRenewed(uint256 indexed tokenId, uint256 newExpiryTime);
-    event TokenExpired(uint256 tokenId);
+
     event DocumentAccessAttempt(
         address indexed user,
         string documentId,
         bool success,
         uint256 timestamp
     );
-    event AccessDenied(address user, string documentId, string reason);
+    event DocumentAccessed(
+        address indexed user,
+        string documentId,
+        uint256 timestamp
+    );
+
     event UnauthorizedAccessAttempt(
         address indexed user,
         string documentId,
@@ -134,36 +154,48 @@ contract DocumentAccessControl is ERC721, Ownable {
 
         // check if there is an associated request
         if (existingRequest.isInitialized) {
-            // if the request is expired, clean it up and revert
             if (existingRequest.expirationTime < block.timestamp) {
                 delete accessRequests[requestKey];
                 revert("Expired request. Please make a new request.");
+            } else {
+                require(
+                    existingRequest.status == RequestStatus.Pending,
+                    "Request already handled"
+                );
+                // update request status to Approved
+                existingRequest.status = RequestStatus.Approved;
+                existingRequest.approver = msg.sender;
+                existingRequest.tokenId = newTokenId; // link the token to the request
             }
-
-            // ensure the request status is Pending
-            require(
-                existingRequest.status == RequestStatus.Pending,
-                "Request already handled or N/A"
-            );
-
-            // update request status to Approved
-            existingRequest.status = RequestStatus.Approved;
-            existingRequest.approver = msg.sender;
-            existingRequest.tokenId = newTokenId; // link the token to the request
         }
 
-        // set token data
-        _tokenExpiryTimes[newTokenId] = block.timestamp + expiryInSeconds;
+        // initialize or update token data in _tokensData
+        _tokensData[newTokenId].tokenOwner = user;
+        _tokensData[newTokenId].expiryTime = block.timestamp + expiryInSeconds;
+        _tokensData[newTokenId].isRevoked = false;
+        _tokensData[newTokenId].revokedTimestamp = 0;
+
+        // add to document-token and token-document mappings
         _documentToTokenId[documentId] = newTokenId;
         _tokenIdToDocumentId[newTokenId] = documentId;
+
+        // set token hash
         _setTokenHash(newTokenId, documentHash);
+
+        // create a new TokenHistory instance and push it to the history array
+        TokenHistory memory newHistory = TokenHistory({
+            timestamp: block.timestamp,
+            action: "Granted",
+            reason: ""
+        });
+        _tokensData[newTokenId].history.push(newHistory);
 
         emit AccessGranted(
             user,
             documentId,
             newTokenId,
             block.timestamp,
-            _tokenExpiryTimes[newTokenId]
+            block.timestamp + expiryInSeconds
         );
 
         return newTokenId;
@@ -174,14 +206,19 @@ contract DocumentAccessControl is ERC721, Ownable {
         uint256 tokenId,
         uint256 additionalTimeInSeconds
     ) external onlyOwner {
-        require(_tokenExpiryTimes[tokenId] != 0, "Token does not exist");
+        require(_tokensData[tokenId].expiryTime != 0, "Token does not exist");
+        require(!_tokensData[tokenId].isRevoked, "Token has been revoked");
         require(
-            _tokenExpiryTimes[tokenId] <= block.timestamp,
+            _tokensData[tokenId].expiryTime <= block.timestamp,
             "Token not yet expired"
         );
 
-        _tokenExpiryTimes[tokenId] = block.timestamp + additionalTimeInSeconds;
-        emit TokenRenewed(tokenId, _tokenExpiryTimes[tokenId]);
+        // update the expiry time in _tokensData
+        _tokensData[tokenId].expiryTime =
+            block.timestamp +
+            additionalTimeInSeconds;
+
+        emit TokenRenewed(tokenId, _tokensData[tokenId].expiryTime);
     }
 
     // REVOKE ACCESS: TOKEN BURN
@@ -190,29 +227,46 @@ contract DocumentAccessControl is ERC721, Ownable {
         string memory reason
     ) external onlyOwner {
         require(bytes(reason).length > 0, "Must provide reason string");
-
-        require(_tokenExpiryTimes[tokenId] != 0, "Token does not exist");
+        TokenData storage tokenData = _tokensData[tokenId];
+        require(tokenData.expiryTime != 0, "Token does not exist");
+        require(!tokenData.isRevoked, "Token already revoked");
         require(
-            _tokenExpiryTimes[tokenId] > block.timestamp,
+            tokenData.expiryTime > block.timestamp,
             "Token already expired"
         );
 
         // store the owner's address before burning the token
         address tokenOwner = ownerOf(tokenId);
 
+        // record the revocation details in the TokenData struct
+        tokenData.isRevoked = true;
+        tokenData.revokedTimestamp = block.timestamp;
+        tokenData.expiryTime = 0; // set expiry time to 0 as it's revoked
+        tokenData.tokenOwner = tokenOwner; // update owner before burning the token for token history/audit
+
         // store the document ID before burning the token
         string memory docId = _tokenIdToDocumentId[tokenId];
+        _revokedTokenIds[docId].push(tokenId);
+
+        // update request status
         bytes32 requestKey = keccak256(abi.encodePacked(docId, tokenOwner));
         if (accessRequests[requestKey].isInitialized) {
             accessRequests[requestKey].status = RequestStatus.None;
         }
 
-        // revoke access & invalidate token
+        // push a new TokenHistory entry for the revocation
+        tokenData.history.push(
+            TokenHistory({
+                timestamp: block.timestamp,
+                action: "Revoked",
+                reason: reason
+            })
+        );
+
+        // burn the token
         _burn(tokenId);
-        _tokenExpiryTimes[tokenId] = 0;
 
         // remove document reference and mapping
-
         delete _documentToTokenId[docId];
         delete _tokenIdToDocumentId[tokenId];
 
@@ -224,10 +278,12 @@ contract DocumentAccessControl is ERC721, Ownable {
     ///////////
 
     // Utility function to check if a request exists and is pending
+    // to list out pending request quickly, or
+    // to prevent duplicate requests
     function isRequestPending(
         string memory documentId,
         address requester
-    ) public view returns (bool) {
+    ) external view returns (bool) {
         bytes32 requestKey = keccak256(abi.encodePacked(documentId, requester));
         Request memory request = accessRequests[requestKey];
         return request.isInitialized && request.status == RequestStatus.Pending;
@@ -312,17 +368,27 @@ contract DocumentAccessControl is ERC721, Ownable {
     }
 
     // TOKEN VALIDITY CHECK
-    function isTokenValid(uint256 tokenId) public returns (bool) {
-        // Check if the token has been minted
-        if (_tokenExpiryTimes[tokenId] == 0) {
-            revert("Token does not exist or has been revoked");
-        }
+    function isTokenValid(uint256 tokenId) public view returns (bool) {
+        TokenData memory tokenData = _tokensData[tokenId];
+        require(
+            tokenData.expiryTime != 0,
+            "Token does not exist or has been revoked"
+        );
 
-        bool isValid = _tokenExpiryTimes[tokenId] > block.timestamp;
-        if (!isValid) {
-            emit TokenExpired(tokenId);
-        }
+        bool isValid = tokenData.expiryTime > block.timestamp;
+
         return isValid;
+    }
+
+    function checkTokenValidity(uint256 tokenId) external view returns (bool) {
+        TokenData memory tokenData = _tokensData[tokenId];
+        require(
+            tokenData.expiryTime != 0 || tokenData.isRevoked,
+            "Token does not exist or was never issued"
+        );
+
+        // Check if the token is valid
+        return tokenData.expiryTime > block.timestamp && !tokenData.isRevoked;
     }
 
     // internal function to check if a user has access to a specific document
@@ -330,13 +396,15 @@ contract DocumentAccessControl is ERC721, Ownable {
     function _hasAccess(
         address user,
         string memory documentId
-    ) internal returns (bool) {
+    ) internal view returns (bool) {
         uint256 tokenId = _documentToTokenId[documentId];
-        // check if token exists and is valid
+        TokenData memory tokenData = _tokensData[tokenId];
+        // check if token exists, is not revoked, and is valid
         return
-            (_tokenExpiryTimes[tokenId] != 0) &&
+            tokenData.expiryTime != 0 &&
+            !tokenData.isRevoked &&
             (ownerOf(tokenId) == user) &&
-            isTokenValid(tokenId);
+            (tokenData.expiryTime > block.timestamp);
     }
 
     // external function to check access to a document
@@ -346,17 +414,32 @@ contract DocumentAccessControl is ERC721, Ownable {
         string memory documentId
     ) external returns (bool) {
         uint256 tokenId = _documentToTokenId[documentId];
-        try this.isTokenValid(tokenId) returns (bool isValid) {
-            if (isValid && ownerOf(tokenId) == user) {
-                return true;
+        TokenData memory tokenData = _tokensData[tokenId];
+        bool success = false;
+
+        if (tokenData.expiryTime != 0 && !tokenData.isRevoked) {
+            if (
+                tokenData.expiryTime > block.timestamp &&
+                ownerOf(tokenId) == user
+            ) {
+                success = true;
+            } else {
+                emit UnauthorizedAccessAttempt(user, documentId, tokenId);
             }
-        } catch {
-            emit UnauthorizedAccessAttempt(user, documentId, tokenId);
         }
-        return false;
+
+        _logAccessAttempt(user, documentId, success);
+        return success;
     }
 
-    // Internal function to log document access attempts
+    // get all revoked tokens
+    function getRevokedTokens(
+        string memory documentId
+    ) external view onlyOwner returns (uint256[] memory) {
+        return _revokedTokenIds[documentId];
+    }
+
+    // internal function to log document access attempts
     function _logAccessAttempt(
         address user,
         string memory documentId,
@@ -366,24 +449,72 @@ contract DocumentAccessControl is ERC721, Ownable {
     }
 
     // GET ALL TOKEN DATA
-    // including for expired tokens
+    // including for expired and revoked tokens
     function getTokenData(
         uint256 tokenId
     )
         external
+        view
         onlyOwner
-        returns (address owner, uint256 expiryTime, bool isValid)
+        returns (
+            address owner,
+            uint256 expiryTime,
+            bool isValid,
+            bool isRevoked,
+            uint256 revokedTimestamp
+        )
     {
-        require(_tokenExpiryTimes[tokenId] != 0, "Token does not exist");
+        TokenData memory tokenData = _tokensData[tokenId];
+        require(
+            tokenData.expiryTime != 0 || tokenData.isRevoked,
+            "Token does not exist or was never issued"
+        );
 
-        owner = ownerOf(tokenId);
-        expiryTime = _tokenExpiryTimes[tokenId]; // expiry time from the mapping
-        isValid = isTokenValid(tokenId); // check validity of the token
+        owner = tokenData.tokenOwner;
+        expiryTime = tokenData.expiryTime;
+        isValid =
+            (expiryTime != 0) &&
+            (expiryTime > block.timestamp) &&
+            !tokenData.isRevoked;
+        isRevoked = tokenData.isRevoked;
+        revokedTimestamp = tokenData.revokedTimestamp;
 
-        return (owner, expiryTime, isValid);
+        return (owner, expiryTime, isValid, isRevoked, revokedTimestamp);
+    }
+
+    // get detailed information about a token && its history
+    function getTokenDetails(
+        uint256 tokenId
+    )
+        external
+        view
+        onlyOwner
+        returns (
+            address owner,
+            uint256 expiryTime,
+            bool isRevoked,
+            uint256 revokedTimestamp,
+            TokenHistory[] memory history
+        )
+    {
+        require(
+            _tokensData[tokenId].expiryTime != 0 ||
+                _tokensData[tokenId].isRevoked,
+            "Token does not exist or was never issued"
+        );
+
+        TokenData memory tokenData = _tokensData[tokenId];
+        owner = tokenData.tokenOwner;
+        expiryTime = tokenData.expiryTime;
+        isRevoked = tokenData.isRevoked;
+        revokedTimestamp = tokenData.revokedTimestamp;
+        history = tokenData.history;
+
+        return (owner, expiryTime, isRevoked, revokedTimestamp, history);
     }
 
     // internal write hash to storage
+    // for tampering detection
     function _setTokenHash(
         uint256 tokenId,
         string memory documentHash

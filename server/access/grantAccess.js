@@ -4,8 +4,14 @@ require("dotenv").config({ path: "../.env" });
 const { getConnection } = require("../utilities/dbConnector");
 const logger = require("../utilities/logger");
 const { getUserWalletAddress } = require("../utilities/extractWalletAddress");
-const { mintAccessToken } = require("../utilities/smartContractUtils");
-const { executeBlockchainMockChecksum, checkIfAlreadyShared, checkForExistingRequest, updateExistingRequest, logGrantInDB } = require("../utilities/dbUtils");
+const { mintAccessOnChain } = require("../utilities/smartContractUtils");
+const {
+  executeBlockchainMockChecksum,
+  checkIfAlreadyShared,
+  checkForExistingRequest,
+  updateExistingRequest,
+  logGrantInDB,
+} = require("../utilities/dbUtils");
 
 async function grantAccess(
   documentId,
@@ -33,7 +39,7 @@ async function grantAccess(
     const userWalletAddress = await getUserWalletAddress(targetUser);
     const documentHash = await executeBlockchainMockChecksum(documentId);
 
-    const { transactionHash, tokenId } = await mintAccessToken(
+    const { transactionHash, tokenId } = await mintAccessOnChain(
       userWalletAddress,
       documentId,
       documentHash,
@@ -41,10 +47,8 @@ async function grantAccess(
     );
 
     if (!transactionHash || tokenId === null || tokenId === undefined) {
-      // logger.error("Token minting failed. No transaction hash or token ID received.");
-      // return;
       throw new Error("Token minting failed.");
-    } 
+    }
 
     // check if the request already exists and is in "requested" status
     if (requestInfo && requestInfo.requestTxHash) {
@@ -60,7 +64,9 @@ async function grantAccess(
         requestInfo
       );
     } else {
-      logger.debug("No existing request found with the given criteria. Granting access.");
+      logger.debug(
+        "No existing request found with the given criteria. Granting access."
+      );
 
       await logGrantInDB(
         connection,
@@ -72,7 +78,9 @@ async function grantAccess(
       );
     }
 
-    logger.info(`Document ${documentId} shared with ${targetUser}. Token id: ${tokenId}, Transaction hash: ${transactionHash}`);
+    logger.info(
+      `Document ${documentId} shared with ${targetUser}. Token id: ${tokenId}, Transaction hash: ${transactionHash}`
+    );
   } catch (error) {
     logger.error(`Error in granting access: ${error.message}`);
     if (error.sqlMessage) {
