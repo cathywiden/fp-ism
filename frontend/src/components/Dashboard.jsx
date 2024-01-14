@@ -10,6 +10,8 @@ function Dashboard({ token, lastUpdated }) {
   const [directExpiryInSeconds, setDirectExpiryInSeconds] = useState("");
   const [grantStatus, setGrantStatus] = useState("");
   const [actionStatus, setActionStatus] = useState({});
+  const [lastAction, setLastAction] = useState({ action: "", timestamp: Date.now() });
+
 
   const handleInputDocIdClick = () => {
     setDirectDocId("");
@@ -50,7 +52,7 @@ function Dashboard({ token, lastUpdated }) {
     };
 
     fetchSharedDocs();
-  }, [token, lastUpdated]); // re-fetch whenever lastUpdated changes
+  }, [token, lastUpdated, lastAction]);
 
   const sortDocuments = (docs) => {
     const statusOrder = {
@@ -122,8 +124,13 @@ function Dashboard({ token, lastUpdated }) {
         ...prevStatus,
         [docId]: "completed",
       }));
-      // Update grant status message upon successful completion
-      setGrantStatus(`Access for ${docId} granted to ${targetUser}.`);
+         // wait for half a second to show the checkmark
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // reset actionStatus and trigger re-fetch
+    setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: null }));
+    setLastAction({ action: "grant", timestamp: Date.now() });
+  
     } catch (error) {
       setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: "error" }));
     }
@@ -176,6 +183,13 @@ function Dashboard({ token, lastUpdated }) {
         ...prevStatus,
         [docId]: "completed",
       }));
+
+               // wait for half a second to show the checkmark
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // reset actionStatus and trigger re-fetch
+      setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: null }));
+      setLastAction({ action: 'grant', timestamp: Date.now() });
     } catch (error) {
       setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: "error" }));
     }
@@ -210,6 +224,12 @@ function Dashboard({ token, lastUpdated }) {
         ...prevStatus,
         [docId]: "completed",
       }));
+               // wait for half a second to show the checkmark
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // reset actionStatus and trigger re-fetch
+      setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: null }));
+      setLastAction({ action: 'grant', timestamp: Date.now() });
     } catch (error) {
       setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: "error" }));
     }
