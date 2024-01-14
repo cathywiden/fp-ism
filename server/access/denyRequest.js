@@ -4,12 +4,11 @@ const { getConnection } = require("../utilities/dbConnector");
 const logger = require("../utilities/logger");
 require("dotenv").config({ path: "../.env" });
 const {
-  logDenyInDB,
-  updateExistingRequestForDeny,
+  logActionInDB,
+  updateRequest,
   checkForExistingRequest,
 } = require("../utilities/dbUtils");
 const { denyRequestOnChain } = require("../utilities/smartContractUtils");
-
 const { getUserWalletAddress } = require("../utilities/extractWalletAddress");
 
 async function denyRequest(documentId, targetUser, reason) {
@@ -23,7 +22,7 @@ async function denyRequest(documentId, targetUser, reason) {
       targetUser
     );
 
-    if (requestInfo) {
+    if (requestInfo && requestInfo.requestTxHash) {
       logger.info("Found existing request, updating it.");
       logger.debug(`requestInfo in denyAccess: ${JSON.stringify(requestInfo)}`);
 
@@ -38,40 +37,27 @@ async function denyRequest(documentId, targetUser, reason) {
         reason
       );
 
-      logger.debug(`Transaction hash: ${transactionHash}`);
+      if (transactionHash) {
+        logger.debug(`Transaction hash: ${transactionHash}`);
 
-      if (!transactionHash) {
-        logger.error("Deny operation failed. No transaction hash received.");
-        return;
-      }
-
-      // check if the request already exists and is in "requested" status
-      if (requestInfo && requestInfo.requestTxHash) {
-        logger.debug("Found existing request, updating it.");
-
-        await updateExistingRequestForDeny(
-          connection,
-          documentId,
-          targetUser,
-          reason,
-          transactionHash,
-          requestInfo
-        );
+        await updateRequest(connection, documentId, targetUser, "deny", {
+          reason: reason,
+          transactionHash: transactionHash,
+        });
       } else {
-        logger.debug(
-          "No existing request found with the given criteria. Denying access."
-        );
-
-        // Log denied request in the DB
-        await logDenyInDB(
-          connection,
-          documentId,
-          targetUser,
-          reason,
-          transactionHash,
-          requestInfo
-        );
+        logger.error("Deny operation failed. No transaction hash received.");
       }
+    } else {
+      logger.debug(
+        "No existing request found with the given criteria. Denying access."
+      );
+
+      await logActionInDB(connection, "deny", {
+        documentId: documentId,
+        targetUser: targetUser,
+        reason: reason,
+        transactionHash: transactionHash,
+      });
     }
   } catch (error) {
     logger.error(`Error in denying access: ${error.message}`);

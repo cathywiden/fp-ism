@@ -4,7 +4,7 @@ const logger = require("../utilities/logger");
 const { getUserWalletAddress } = require("../utilities/extractWalletAddress");
 const { getConnection } = require("../utilities/dbConnector");
 const { requestAccessOnChain } = require("../utilities/smartContractUtils");
-const { logRequestDB, doesRequestExist } = require("../utilities/dbUtils");
+const { logActionInDB, doesRequestExist } = require("../utilities/dbUtils");
 
 async function requestAccess(documentId, requester) {
   let connection;
@@ -16,6 +16,7 @@ async function requestAccess(documentId, requester) {
       documentId,
       requester
     );
+
     if (duplicateCheck === "No duplicates") {
       const userWalletAddress = await getUserWalletAddress(requester);
       const transactionHash = await requestAccessOnChain(
@@ -31,13 +32,12 @@ async function requestAccess(documentId, requester) {
 
       if (transactionHash) {
         const requestTime = Math.floor(Date.now() / 1000);
-        await logRequestDB(
-          connection,
-          documentId,
-          requester,
-          requestTime,
-          transactionHash
-        );
+        await logActionInDB(connection, "request", {
+          documentId: documentId,
+          requester: requester,
+          requestTime: requestTime,
+          transactionHash: transactionHash,
+        });
       }
       return "Request submitted";
     } else {

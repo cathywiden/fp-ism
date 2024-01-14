@@ -1,31 +1,41 @@
 //  server/server.js
 
 require("dotenv").config({ path: "../.env" });
-const { getDocumentById } = require("../server/utilities/dbUtils");
+
+// utilities
 const { initialize, close } = require("../server/utilities/dbConnector");
-const { validateToken } = require("./access/tokenValidation");
+const {
+  getDocumentById,
+  getAllSharedDocs,
+  expireDocuments,
+  EXPIRE_DOCUMENTS_INTERVAL,
+} = require("../server/utilities/dbUtils");
 const logger = require("../server/utilities/logger");
+
+// access control
+const { validateToken } = require("./access/tokenValidation");
+const validateJWT = require("./middlewares/validateJWT");
+const { determineUserRole } = require("./middlewares/roleDetermination");
+const { generateToken } = require("./utilities/JWTGenerator");
+
+// access functions
 const { grantAccess } = require("./access/grantAccess");
 const { denyRequest } = require("./access/denyRequest");
 const { revokeAccess } = require("./access/revokeAccess");
 const { requestAccess } = require("./access/requestAccess");
+
+// document tampering
 const {
   isTamperedWithInDB,
   TAMPER_POLLING_INTERVAL,
+  checkDocumentTampering,
 } = require("./utilities/logTampering");
-const checkDocumentTampering = require("./utilities/checkDocumentTampering");
+
+// polling shared documents
 const {
   checkSharedDocs,
   POLLING_INTERVAL,
 } = require("./utilities/pollSharedDocs");
-const { determineUserRole } = require("./middlewares/roleDetermination");
-const validateJWT = require("./middlewares/validateJWT");
-const { generateToken } = require("./utilities/JWTGenerator");
-const { getAllSharedDocs } = require("./utilities/dbUtils");
-const {
-  expireDocuments,
-  EXPIRE_DOCUMENTS_INTERVAL,
-} = require("./utilities/dbUtils");
 
 const express = require("express");
 const cors = require("cors");
@@ -74,19 +84,6 @@ app.get("/get-user-role", validateJWT, determineUserRole, (req, res) => {
   res.json({ role: req.user.role });
 });
 
-// protected route for jwt
-app.get("/protected-route", validateJWT, determineUserRole, (req, res) => {
-  if (req.user.role === "Sharer, Auditor") {
-    // operations specific to Sharer and Auditor
-    res.json({ message: "Accessing Sharer and Auditor specific data" });
-  } else if (req.user.role === "Receiver") {
-    // perform operations specific to Receiver
-    res.json({ message: "Accessing Receiver specific data" });
-  } else {
-    res.status(403).send("Access denied. Unauthorized role.");
-  }
-});
-
 app.get("/document/:id", validateToken, async (req, res) => {
   try {
     const documentId = req.params.id;
@@ -103,7 +100,6 @@ app.get("/document/:id", validateToken, async (req, res) => {
 
     // check for tampering
     const isTampered = await checkDocumentTampering(documentId);
-
     logger.debug(`isTampered: ${isTampered}`);
 
     // send a single response with document and tampering status
@@ -128,23 +124,22 @@ app.post(
 
         const { documentId, targetUser, documentHash, expiryInSeconds } =
           req.body;
+
         await grantAccess(
           documentId,
           targetUser,
           documentHash,
-          expiryInSeconds,
-          true
+          expiryInSeconds
+          // true
         );
         res.status(200).json({ message: "Document shared successfully" });
       } catch (error) {
         logger.error(`Error in grant endpoint: ${error}`);
         if (error.code === "CALL_EXCEPTION") {
-          res
-            .status(500)
-            .json({
-              error: "Blockchain transaction failed",
-              details: error.message,
-            });
+          res.status(500).json({
+            error: "Blockchain transaction failed",
+            details: error.message,
+          });
         } else {
           logger.error(`Error in grant endpoint: ${error.message}`);
           res.status(500).json({ error: error.message });
@@ -241,7 +236,6 @@ app.get("/shared-docs", validateJWT, async (req, res) => {
   try {
     const userType = req.user.role.includes("Receiver") ? "user2" : "user1";
     let sharedDocs = await getAllSharedDocs(userType);
-
     const currentTime = Math.floor(Date.now() / 1000);
 
     if (userType === "user2") {
