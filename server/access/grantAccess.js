@@ -9,8 +9,8 @@ const {
   executeBlockchainMockChecksum,
   checkIfAlreadyShared,
   checkForExistingRequest,
-  updateExistingRequest,
-  logGrantInDB,
+  updateRequest,
+  logActionInDB,
 } = require("../utilities/dbUtils");
 
 async function grantAccess(
@@ -24,8 +24,10 @@ async function grantAccess(
     connection = await getConnection("user1");
 
     if (await checkIfAlreadyShared(connection, documentId, targetUser)) {
-      logger.info("Document already shared, skipping access grant.");
-      return;
+      logger.info(
+        `Document ${documentId} already shared with ${targetUser}, skipping access grant.`
+      );
+      return; // exit early if doc already shared
     }
 
     const requestInfo = await checkForExistingRequest(
@@ -33,7 +35,6 @@ async function grantAccess(
       documentId,
       targetUser
     );
-
     logger.debug(`requestInfo in grantAccess: ${JSON.stringify(requestInfo)}`);
 
     const userWalletAddress = await getUserWalletAddress(targetUser);
@@ -50,32 +51,25 @@ async function grantAccess(
       throw new Error("Token minting failed.");
     }
 
-    // check if the request already exists and is in "requested" status
     if (requestInfo && requestInfo.requestTxHash) {
       logger.debug("Found existing request, updating it.");
 
-      await updateExistingRequest(
-        connection,
-        documentId,
-        targetUser,
-        tokenId,
-        transactionHash,
-        expiryInSeconds,
-        requestInfo
-      );
+      await updateRequest(connection, documentId, targetUser, "grant", {
+        tokenId: tokenId,
+        transactionHash: transactionHash,
+        expiryInSeconds: expiryInSeconds,
+      });
     } else {
       logger.debug(
         "No existing request found with the given criteria. Granting access."
       );
-
-      await logGrantInDB(
-        connection,
-        documentId,
-        tokenId,
-        targetUser,
-        transactionHash,
-        expiryInSeconds
-      );
+      await logActionInDB(connection, "grant", {
+        documentId: documentId,
+        tokenId: tokenId,
+        targetUser: targetUser,
+        transactionHash: transactionHash,
+        expiryInSeconds: expiryInSeconds,
+      });
     }
 
     logger.info(

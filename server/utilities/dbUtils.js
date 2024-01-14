@@ -31,39 +31,7 @@ async function getDocumentById(document_id, userType) {
   }
 }
 
-/* async function getAllSharedDocs(userType) {
-  let connection;
-  logger.debug(`getAllSharedDocs called for userType: ${userType}`);
-
-  try {
-    connection = await getConnection(userType);
-    let query;
-
-    if (userType === "user1") {
-      query = `SELECT DOC_ID, TARGET_USER, STATUS, TOKEN_ID, TOKEN_EXP_TS FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS}`;
-    } else if (userType === "user2") {
-      query = `SELECT DOC_ID, TOKEN_EXP_TS FROM ${process.env.DB_USER2}.${process.env.DB_TABLE_SHARED_DOCS}`;
-    } else {
-      throw new Error("Invalid user type");
-    }
-
-    logger.debug(`Executing query: ${query}`);
-    const result = await connection.execute(query);
-
-    console.log("Query result:", result.rows);
-    return result.rows;
-  } catch (error) {
-    logger.error(`Error in getAllSharedDocs: ${error.message}`);
-    throw error;
-  } finally {
-    if (connection) {
-      await connection.close();
-    }
-  }
-}
-
- */
-
+// query all available shared documents for user1 and user2
 async function getAllSharedDocs(userType) {
   let connection;
   logger.debug(`getAllSharedDocs called for userType: ${userType}`);
@@ -118,7 +86,6 @@ async function expireDocuments() {
 
     // procedure set in Oracle will set status to "expired" based on timestamps
     await connection.execute(`BEGIN blockchain_expire_documents; END;`);
-
     await connection.commit();
 
     console.log("expireDocuments procedure executed successfully.");
@@ -136,6 +103,12 @@ async function expireDocuments() {
 }
 
 // execute Oracle procedure blockchain_mock_checksum
+// the procedure itself in Oracle will:
+// -- fetch the XML from the "heap" table
+// -- insert XML into {process.env.DB_USER2}{process.env.DB_TABLE_CHECKSUM}
+// -- calculate a moch checksum by hashing the first 500 chars of the XML
+// -- insert the mock checksum into the same table
+// used for: both logging the checksum together with the document when mintign a token, but also for tampering detection (if the checksum changes).
 async function executeBlockchainMockChecksum(documentId) {
   let connection;
 
@@ -145,7 +118,6 @@ async function executeBlockchainMockChecksum(documentId) {
     );
     connection = await getConnection("user1");
 
-    // execute DB procedure
     await connection.execute(
       `BEGIN
          blockchain_mock_checksum(:documentId);
@@ -177,25 +149,40 @@ async function executeBlockchainMockChecksum(documentId) {
     }
   }
 }
-
 async function checkIfAlreadyShared(connection, documentId, targetUser) {
+  logger.debug(
+    `Executing checkIfAlreadyShared for Document ID: ${documentId}, Target User: ${targetUser}`
+  );
+
   const sharedDocsCheck = await connection.execute(
     `SELECT COUNT(*) AS count FROM ${process.env.DB_USER2}.${process.env.DB_TABLE_SHARED_DOCS} WHERE DOC_ID = :documentId AND TARGET_USER = :targetUser`,
     [documentId, targetUser]
   );
-  if (sharedDocsCheck.rows[0].COUNT > 0) {
-    logger.info(`Document ${documentId} already shared with ${targetUser}`);
-    return;
+
+  logger.debug(
+    `Query executed. Result: ${JSON.stringify(sharedDocsCheck.rows)}`
+  );
+
+  if (sharedDocsCheck.rows.length > 0 && sharedDocsCheck.rows[0].COUNT > 0) {
+    logger.info(
+      `Document ${documentId} already shared with ${targetUser}. Found ${sharedDocsCheck.rows[0].COUNT} shares.`
+    );
+    return true; // doc already shared
   }
+
+  logger.debug(
+    `Document ${documentId} not shared with ${targetUser} yet. Proceeding with sharing.`
+  );
+  return false; // doc not shared
 }
 
+// check if a share request already exists for the same documentId and requester
+// it also checks if the document exists and if access has already been granted
 async function doesRequestExist(connection, documentId, requester) {
   const heapDetails = await connectToHeap(documentId);
   const docCheckQuery = heapDetails.docCheckQuery;
-
   logger.debug(`docCheckQuery: ${docCheckQuery}`);
 
-  // execute document existence check
   const docExistsResult = await connection.execute(docCheckQuery, [documentId]);
 
   // check if document exists in heap (check for actual document data, not ID)
@@ -229,6 +216,7 @@ async function doesRequestExist(connection, documentId, requester) {
   return "No duplicates";
 }
 
+// check specifically for an existing "requested" status for a given document and target user
 async function checkForExistingRequest(connection, documentId, targetUser) {
   const requestCheckQuery = `
     SELECT REQ_TS, REQ_TX_HASH 
@@ -249,6 +237,8 @@ async function checkForExistingRequest(connection, documentId, targetUser) {
       logger.debug(
         `Found Request - Timestamp: ${REQ_TS}, TxHash: ${REQ_TX_HASH}`
       );
+
+      // extracts requestTimestamp and the associated transaction hash if request exists
       return {
         requestTimestamp: REQ_TS,
         requestTxHash: REQ_TX_HASH,
@@ -265,166 +255,143 @@ async function checkForExistingRequest(connection, documentId, targetUser) {
   }
 }
 
-async function updateExistingRequestForDeny(
+// update an existing request for "grant" or "deny"
+// if a request already exists, update the SAME row with grant details
+async function updateRequest(
   connection,
   documentId,
   targetUser,
-  reason,
-  transactionHash,
-  requestInfo
+  actionType,
+  details
 ) {
   logger.debug(
     `Before executing UPDATE: DOC_ID = ${documentId}, TARGET_USER = ${targetUser}`
   );
 
-  const denyTime = Math.floor(Date.now() / 1000);
-  const denyQuery = `UPDATE ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS}  
-  SET DENY_TS = :denyTime, TARGET_USER = :targetUser, DENY_TX_HASH = :transactionHash, STATUS = 'denied', REASON = :reason
-  WHERE DOC_ID = :documentId AND STATUS = 'requested'`;
+  const currentTime = Math.floor(Date.now() / 1000);
+  let updateQuery;
+  let queryParams;
+
+  switch (actionType) {
+    case "grant":
+      const tokenExpiry = currentTime + details.expiryInSeconds;
+      updateQuery = `UPDATE ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS}  
+                     SET TOKEN_ID = :tokenId, GRANT_TS = :currentTime, TOKEN_EXP_TS = :tokenExpiry, GRANT_TX_HASH = :transactionHash, STATUS = 'granted'
+                     WHERE DOC_ID = :documentId AND STATUS = 'requested'`;
+      queryParams = {
+        documentId: documentId,
+        tokenId: details.tokenId,
+        currentTime: currentTime,
+        tokenExpiry: tokenExpiry,
+        transactionHash: details.transactionHash,
+      };
+      break;
+
+    case "deny":
+      updateQuery = `UPDATE ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS}  
+                     SET DENY_TS = :currentTime, DENY_TX_HASH = :transactionHash, STATUS = 'denied', REASON = :reason
+                     WHERE DOC_ID = :documentId AND STATUS = 'requested'`;
+      queryParams = {
+        documentId: documentId,
+        currentTime: currentTime,
+        transactionHash: details.transactionHash,
+        reason: details.reason,
+      };
+      break;
+
+    default:
+      logger.error("Invalid action type for updating request");
+      return;
+  }
 
   try {
-    const result = await connection.execute(denyQuery, {
-      documentId: documentId,
-      targetUser: targetUser,
-      transactionHash: transactionHash,
-      denyTime: denyTime,
-      reason: reason,
-    });
-
+    const result = await connection.execute(updateQuery, queryParams);
     logger.debug(`UPDATE Query executed. Rows updated: ${result.rowsAffected}`);
     await connection.commit();
   } catch (error) {
-    logger.error(`Error in updateExistingRequestForDeny: ${error.message}`);
-  }
-}
-
-// if a request already exists, update the SAME row with grant details
-async function updateExistingRequest(
-  connection,
-  documentId,
-  targetUser,
-  tokenId,
-  transactionHash,
-  expiryInSeconds,
-  requestInfo
-) {
-  logger.debug(
-    `Before executing UPDATE: DOC_ID = ${documentId}, TARGET_USER = ${targetUser}`
-  );
-
-  const shareTime = Math.floor(Date.now() / 1000);
-  const tokenExpiry = shareTime + expiryInSeconds;
-  const updateQuery = `UPDATE ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS}  
-  SET TOKEN_ID = :tokenId, GRANT_TS = :shareTime, TOKEN_EXP_TS = :tokenExpiry, GRANT_TX_HASH = :transactionHash, STATUS = 'granted'
-  WHERE DOC_ID = :documentId AND STATUS = 'requested'`;
-
-  const result = await connection.execute(updateQuery, {
-    documentId: documentId,
-    tokenId: tokenId,
-    shareTime: shareTime,
-    tokenExpiry: tokenExpiry,
-    transactionHash: transactionHash,
-  });
-
-  logger.debug(`UPDATE Query executed. Rows updated: ${result.rowsAffected}`);
-
-  await connection.commit();
-}
-
-async function logRequestDB(
-  connection,
-  documentId,
-  requester,
-  requestTime,
-  transactionHash
-) {
-  try {
-    const requestQuery = `INSERT INTO ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} (DOC_ID, TARGET_USER, REQ_TS, REQ_TX_HASH, STATUS) VALUES (:documentId, :requester, :requestTime, :transactionHash, 'requested')`;
-
-    logger.debug(`Document request logging query: ${requestQuery}`);
-
-    await connection.execute(requestQuery, [
-      documentId,
-      requester,
-      requestTime,
-      transactionHash,
-    ]);
-    logger.debug(
-      `Document ${documentId} has recently been requested by ${requester}`
+    logger.error(
+      `Error in updateExistingRequest (${actionType}): ${error.message}`
     );
-
-    return await connection.commit();
-  } catch (error) {
-    logger.error("Error logging request: " + error.message);
-    return "Error logging request";
   }
 }
 
-// log details in unified table
-async function logGrantInDB(
-  connection,
-  documentId,
-  tokenId,
-  targetUser,
-  transactionHash,
-  expiryInSeconds,
-  requestInfo
-) {
-  const shareTime = Math.floor(Date.now() / 1000);
-  const tokenExpiry = shareTime + expiryInSeconds;
+async function logActionInDB(connection, actionType, details) {
+  let query;
+  let queryParams;
 
-  const accessQuery = `INSERT INTO ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} 
-  (DOC_ID, TOKEN_ID, TARGET_USER, REQ_TS, GRANT_TS, TOKEN_EXP_TS, GRANT_TX_HASH, STATUS) 
-  VALUES (:documentId, :tokenId, :targetUser, :requestTimestamp, :shareTime, :tokenExpiry, :transactionHash, 'granted')`;
+  switch (actionType) {
+    case "request":
+      query = `INSERT INTO ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} (DOC_ID, TARGET_USER, REQ_TS, REQ_TX_HASH, STATUS) VALUES (:documentId, :requester, :requestTime, :transactionHash, 'requested')`;
+      queryParams = [
+        details.documentId,
+        details.requester,
+        details.requestTime,
+        details.transactionHash,
+      ];
+      break;
 
-  await connection.execute(accessQuery, {
-    documentId: documentId,
-    tokenId: tokenId,
-    targetUser: targetUser,
-    requestTimestamp: requestInfo ? requestInfo.requestTimestamp : null,
-    shareTime: shareTime,
-    tokenExpiry: tokenExpiry,
-    transactionHash: transactionHash,
-  });
-  await connection.commit();
-}
+    case "grant":
+      const shareTime = Math.floor(Date.now() / 1000);
+      const tokenExpiry = shareTime + details.expiryInSeconds;
+      query = `INSERT INTO ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} (DOC_ID, TOKEN_ID, TARGET_USER, REQ_TS, GRANT_TS, TOKEN_EXP_TS, GRANT_TX_HASH, STATUS) VALUES (:documentId, :tokenId, :targetUser, :requestTimestamp, :shareTime, :tokenExpiry, :transactionHash, 'granted')`;
+      queryParams = {
+        documentId: details.documentId,
+        tokenId: details.tokenId,
+        targetUser: details.targetUser,
+        requestTimestamp: details.requestInfo
+          ? details.requestInfo.requestTimestamp
+          : null,
+        shareTime: shareTime,
+        tokenExpiry: tokenExpiry,
+        transactionHash: details.transactionHash,
+      };
+      break;
 
-async function logDenyInDB(
-  documentId,
-  targetUser,
-  reason,
-  transactionHash,
-  requestInfo
-) {
-  let connection;
+    case "deny":
+      const denyTime = Math.floor(Date.now() / 1000);
+      query = `INSERT INTO ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} 
+      (DOC_ID, TARGET_USER, DENY_TS, REASON, DENY_TX_HASH) 
+     VALUES (:documentId, :targetUser, :denyTime, :denyReason, :transactionHash)`;
+      queryParams = {
+        documentId: details.documentId,
+        targetUser: details.targetUser,
+        denyTime: denyTime,
+        denyReason: details.reason,
+        transactionHash: details.transactionHash,
+      };
+      break;
+
+    case "revoke":
+      const revokeTime = Math.floor(Date.now() / 1000);
+      query = `UPDATE ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} SET REV_TS = :revokeTime, REV_TX_HASH = :transactionHash, REASON = :reason, STATUS = 'revoked' WHERE TOKEN_ID = :tokenId`;
+      queryParams = {
+        tokenId: details.tokenId,
+        revokeTime: revokeTime,
+        transactionHash: details.transactionHash,
+        reason: details.reason,
+      };
+      break;
+
+    default:
+      logger.error(`Invalid action type: ${actionType}`);
+      return;
+  }
+
   try {
-    connection = await getConnection("user1");
-
-    const denyQuery = `INSERT INTO ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} 
-                        (DOC_ID, TARGET_USER, DENY_TS, REASON, DENY_TX_HASH) 
-                       VALUES (:documentId, :targetUser, :denyTime, :denyReason, :transactionHash)`;
-
-    const result = await connection.execute(denyQuery, {
-      documentId: documentId,
-      targetUser: targetUser,
-      denyTime: Math.floor(Date.now() / 1000),
-      denyReason: reason,
-      transactionHash: transactionHash,
-      requestTimestamp: requestInfo ? requestInfo.requestTimestamp : null,
-    });
-
-    logger.debug("Raw Result: " + JSON.stringify(result));
-
+    const result = await connection.execute(query, queryParams);
+    logger.debug(
+      `Action logged in DB. Action type: ${actionType}, Result: ${JSON.stringify(
+        result
+      )}`
+    );
     await connection.commit();
-
     return result;
   } catch (error) {
-    logger.error(`Error in granting access: ${error.message}`);
+    logger.error(`Error in logActionInDB (${actionType}): ${error.message}`);
     if (error.sqlMessage) {
       logger.error(`SQL Error: ${error.sqlMessage}`);
     }
-  } finally {
-    if (connection) await connection.close();
+    throw error;
   }
 }
 
@@ -452,12 +419,9 @@ module.exports = {
   checkIfAlreadyShared,
   checkForExistingRequest,
   doesRequestExist,
-  updateExistingRequest,
-  logGrantInDB,
-  logRequestDB,
-  logDenyInDB,
-  updateExistingRequestForDeny,
   getAllSharedDocs,
   expireDocuments,
   EXPIRE_DOCUMENTS_INTERVAL,
+  updateRequest,
+  logActionInDB,
 };
