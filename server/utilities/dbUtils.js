@@ -31,7 +31,6 @@ async function getDocumentById(document_id, userType) {
   }
 }
 
-
 /* async function getAllSharedDocs(userType) {
   let connection;
   logger.debug(`getAllSharedDocs called for userType: ${userType}`);
@@ -80,14 +79,14 @@ async function getAllSharedDocs(userType) {
       // on frontend, enough to display the last (actual) state of the document, because historical data are directly available to user1 via the DB
       query = `
       SELECT a.DOC_ID, a.TARGET_USER, a.STATUS, a.TOKEN_ID, a.TOKEN_EXP_TS
-      FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} a
-      LEFT JOIN (
-        SELECT DOC_ID, MAX(TOKEN_ID) as MAX_TOKEN_ID
-        FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS}
-        GROUP BY DOC_ID
-      ) b ON a.DOC_ID = b.DOC_ID
-      WHERE a.STATUS = 'requested' OR a.TOKEN_ID = b.MAX_TOKEN_ID
-      ORDER BY a.DOC_ID, a.TOKEN_ID DESC
+FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} a
+LEFT JOIN (
+    SELECT DOC_ID, MAX(TOKEN_ID) as MAX_TOKEN_ID
+    FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS}
+    GROUP BY DOC_ID
+) b ON a.DOC_ID = b.DOC_ID
+WHERE a.STATUS IN ('requested', 'denied') OR a.TOKEN_ID = b.MAX_TOKEN_ID
+ORDER BY a.DOC_ID, a.TOKEN_ID DESC
     `;
     } else if (userType === "user2") {
       query = `SELECT DOC_ID, TOKEN_EXP_TS FROM ${process.env.DB_USER2}.${process.env.DB_TABLE_SHARED_DOCS}`;
