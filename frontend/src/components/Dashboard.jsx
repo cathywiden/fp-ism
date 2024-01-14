@@ -22,9 +22,15 @@ function Dashboard({ token, lastUpdated }) {
   const handleInputTargetUserClick = () => {
     setDirectTargetUser("");
   };
+
+  const getActionStatusKey = (docId, tokenId) => {
+    return tokenId ? `${docId}-${tokenId}` : `${docId}-request`;
+  };
+
   // status indicator based on action status
-  const renderStatusIndicator = (docId) => {
-    const status = actionStatus[docId];
+  const renderStatusIndicator = (docId, tokenId) => {
+    const actionKey = getActionStatusKey(docId, tokenId);
+    const status = actionStatus[actionKey];
     switch (status) {
       case "in progress":
         return <span>...</span>;
@@ -35,6 +41,13 @@ function Dashboard({ token, lastUpdated }) {
       default:
         return null; // no action taken yet!
     }
+  };
+
+  // highlight revoked entries to warn user1 before granting access again
+  const hasRevokedHistory = (docId) => {
+    return sharedDocs.some(
+      (doc) => doc.DOC_ID === docId && doc.STATUS === "revoked"
+    );
   };
 
   useEffect(() => {
@@ -93,10 +106,12 @@ function Dashboard({ token, lastUpdated }) {
     }
   };
 
-  const handleGrant = async (docId, targetUser) => {
+  const handleGrant = async (docId, targetUser, tokenId) => {
+    const actionKey = getActionStatusKey(docId, tokenId);
+
     setActionStatus((prevStatus) => ({
       ...prevStatus,
-      [docId]: "in progress",
+      [actionKey]: "in progress",
     }));
 
     // must pass in expiry in seconds
@@ -124,8 +139,9 @@ function Dashboard({ token, lastUpdated }) {
 
       setActionStatus((prevStatus) => ({
         ...prevStatus,
-        [docId]: "completed",
+        [actionKey]: "completed",
       }));
+
       // wait for half a second to show the checkmark
       await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -153,10 +169,12 @@ function Dashboard({ token, lastUpdated }) {
     handleGrant(directDocId, directTargetUser, expiryTime);
   };
 
-  const handleDeny = async (docId, targetUser) => {
+  const handleDeny = async (docId, targetUser, tokenId) => {
+    const actionKey = getActionStatusKey(docId, tokenId);
+
     setActionStatus((prevStatus) => ({
       ...prevStatus,
-      [docId]: "in progress",
+      [actionKey]: "in progress",
     }));
 
     const reason = prompt("Enter the reason for denial:");
@@ -182,24 +200,29 @@ function Dashboard({ token, lastUpdated }) {
 
       setActionStatus((prevStatus) => ({
         ...prevStatus,
-        [docId]: "completed",
+        [actionKey]: "completed",
       }));
 
       // wait for half a second to show the checkmark
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       // reset actionStatus and trigger re-fetch
-      setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: null }));
+      setActionStatus((prevStatus) => ({ ...prevStatus, [actionKey]: null }));
       setLastAction({ action: "deny", timestamp: Date.now() });
     } catch (error) {
-      setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: "error" }));
+      setActionStatus((prevStatus) => ({
+        ...prevStatus,
+        [actionKey]: "error",
+      }));
     }
   };
 
-  const handleRevoke = async (docId) => {
+  const handleRevoke = async (docId, tokenId) => {
+    const actionKey = getActionStatusKey(docId, tokenId);
+
     setActionStatus((prevStatus) => ({
       ...prevStatus,
-      [docId]: "in progress",
+      [actionKey]: "in progress",
     }));
     const reason = prompt("Enter the reason for revocation:");
     if (!reason) return; // must passs in reason
@@ -223,16 +246,19 @@ function Dashboard({ token, lastUpdated }) {
 
       setActionStatus((prevStatus) => ({
         ...prevStatus,
-        [docId]: "completed",
+        [actionKey]: "completed",
       }));
       // wait for half a second to show the checkmark
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       // reset actionStatus and trigger re-fetch
-      setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: null }));
+      setActionStatus((prevStatus) => ({ ...prevStatus, [actionKey]: null }));
       setLastAction({ action: "revoke", timestamp: Date.now() });
     } catch (error) {
-      setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: "error" }));
+      setActionStatus((prevStatus) => ({
+        ...prevStatus,
+        [actionKey]: "error",
+      }));
     }
   };
 
@@ -281,7 +307,14 @@ function Dashboard({ token, lastUpdated }) {
           </thead>
           <tbody>
             {sharedDocs.map((doc) => (
-              <tr key={doc.DOC_ID} className="row-hover-effect">
+              <tr
+                key={doc.DOC_ID + "-" + doc.TOKEN_ID}
+                className={`row-hover-effect ${
+                  doc.STATUS === "requested" && hasRevokedHistory(doc.DOC_ID)
+                    ? "highlight-row"
+                    : ""
+                }`}
+              >
                 <td>{doc.DOC_ID}</td>
                 <td>{doc.TARGET_USER}</td>
                 <td>{doc.STATUS}</td>
@@ -296,13 +329,17 @@ function Dashboard({ token, lastUpdated }) {
                   {doc.STATUS === "requested" && (
                     <>
                       <button
-                        onClick={() => handleGrant(doc.DOC_ID, doc.TARGET_USER)}
+                        onClick={() =>
+                          handleGrant(doc.DOC_ID, doc.TARGET_USER, doc.TOKEN_ID)
+                        }
                         className="grant-button"
                       >
                         Grant
                       </button>
                       <button
-                        onClick={() => handleDeny(doc.DOC_ID, doc.TARGET_USER)}
+                        onClick={() =>
+                          handleDeny(doc.DOC_ID, doc.TARGET_USER, doc.TOKEN_ID)
+                        }
                         className="deny-button"
                       >
                         Deny
@@ -311,7 +348,7 @@ function Dashboard({ token, lastUpdated }) {
                   )}
                   {doc.STATUS === "expired" && (
                     <button
-                      onClick={() => handleRenew(doc.DOC_ID)}
+                      onClick={() => handleRenew(doc.DOC_ID, doc.TOKEN_ID)}
                       className="renew-button"
                     >
                       Renew
@@ -319,15 +356,16 @@ function Dashboard({ token, lastUpdated }) {
                   )}
                   {doc.STATUS === "granted" && (
                     <button
-                      onClick={() => handleRevoke(doc.DOC_ID)}
+                      onClick={() => handleRevoke(doc.DOC_ID, doc.TOKEN_ID)}
                       className="revoke-button"
                     >
                       Revoke
                     </button>
                   )}
+
                   {/* no buttons for "revoked" or "denied" status. according to contract logic, a new request can be placed */}
                 </td>
-                <td>{renderStatusIndicator(doc.DOC_ID)}</td>
+                <td>{renderStatusIndicator(doc.DOC_ID, doc.TOKEN_ID)}</td>
               </tr>
             ))}
           </tbody>

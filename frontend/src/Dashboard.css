@@ -65,3 +65,7 @@ input {
   border-radius: 3px;
   border: 1px solid slategray;
 }
+
+.highlight-row {
+  background-color: #e5489e; 
+}
