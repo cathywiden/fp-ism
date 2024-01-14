@@ -10,8 +10,10 @@ function Dashboard({ token, lastUpdated }) {
   const [directExpiryInSeconds, setDirectExpiryInSeconds] = useState("");
   const [grantStatus, setGrantStatus] = useState("");
   const [actionStatus, setActionStatus] = useState({});
-  const [lastAction, setLastAction] = useState({ action: "", timestamp: Date.now() });
-
+  const [lastAction, setLastAction] = useState({
+    action: "",
+    timestamp: Date.now(),
+  });
 
   const handleInputDocIdClick = () => {
     setDirectDocId("");
@@ -124,13 +126,12 @@ function Dashboard({ token, lastUpdated }) {
         ...prevStatus,
         [docId]: "completed",
       }));
-         // wait for half a second to show the checkmark
-    await new Promise(resolve => setTimeout(resolve, 500));
+      // wait for half a second to show the checkmark
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // reset actionStatus and trigger re-fetch
-    setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: null }));
-    setLastAction({ action: "grant", timestamp: Date.now() });
-  
+      // reset actionStatus and trigger re-fetch
+      setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: null }));
+      setLastAction({ action: "grant", timestamp: Date.now() });
     } catch (error) {
       setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: "error" }));
     }
@@ -184,12 +185,12 @@ function Dashboard({ token, lastUpdated }) {
         [docId]: "completed",
       }));
 
-               // wait for half a second to show the checkmark
-    await new Promise(resolve => setTimeout(resolve, 500));
+      // wait for half a second to show the checkmark
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // reset actionStatus and trigger re-fetch
+      // reset actionStatus and trigger re-fetch
       setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: null }));
-      setLastAction({ action: 'grant', timestamp: Date.now() });
+      setLastAction({ action: "deny", timestamp: Date.now() });
     } catch (error) {
       setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: "error" }));
     }
@@ -224,12 +225,12 @@ function Dashboard({ token, lastUpdated }) {
         ...prevStatus,
         [docId]: "completed",
       }));
-               // wait for half a second to show the checkmark
-    await new Promise(resolve => setTimeout(resolve, 500));
+      // wait for half a second to show the checkmark
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // reset actionStatus and trigger re-fetch
+      // reset actionStatus and trigger re-fetch
       setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: null }));
-      setLastAction({ action: 'grant', timestamp: Date.now() });
+      setLastAction({ action: "revoke", timestamp: Date.now() });
     } catch (error) {
       setActionStatus((prevStatus) => ({ ...prevStatus, [docId]: "error" }));
     }

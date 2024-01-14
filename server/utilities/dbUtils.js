@@ -31,7 +31,8 @@ async function getDocumentById(document_id, userType) {
   }
 }
 
-async function getAllSharedDocs(userType) {
+
+/* async function getAllSharedDocs(userType) {
   let connection;
   logger.debug(`getAllSharedDocs called for userType: ${userType}`);
 
@@ -41,6 +42,53 @@ async function getAllSharedDocs(userType) {
 
     if (userType === "user1") {
       query = `SELECT DOC_ID, TARGET_USER, STATUS, TOKEN_ID, TOKEN_EXP_TS FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS}`;
+    } else if (userType === "user2") {
+      query = `SELECT DOC_ID, TOKEN_EXP_TS FROM ${process.env.DB_USER2}.${process.env.DB_TABLE_SHARED_DOCS}`;
+    } else {
+      throw new Error("Invalid user type");
+    }
+
+    logger.debug(`Executing query: ${query}`);
+    const result = await connection.execute(query);
+
+    console.log("Query result:", result.rows);
+    return result.rows;
+  } catch (error) {
+    logger.error(`Error in getAllSharedDocs: ${error.message}`);
+    throw error;
+  } finally {
+    if (connection) {
+      await connection.close();
+    }
+  }
+}
+
+ */
+
+async function getAllSharedDocs(userType) {
+  let connection;
+  logger.debug(`getAllSharedDocs called for userType: ${userType}`);
+
+  try {
+    connection = await getConnection(userType);
+    let query;
+
+    if (userType === "user1") {
+      // get the latest entry for each DOC_ID
+      // I log each full grant/revoke cycle in the DB on a new row
+      // meaning, if I grant/revoke and then grant again, it will start a new row
+      // on frontend, enough to display the last (actual) state of the document, because historical data are directly available to user1 via the DB
+      query = `
+      SELECT a.DOC_ID, a.TARGET_USER, a.STATUS, a.TOKEN_ID, a.TOKEN_EXP_TS
+      FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} a
+      LEFT JOIN (
+        SELECT DOC_ID, MAX(TOKEN_ID) as MAX_TOKEN_ID
+        FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS}
+        GROUP BY DOC_ID
+      ) b ON a.DOC_ID = b.DOC_ID
+      WHERE a.STATUS = 'requested' OR a.TOKEN_ID = b.MAX_TOKEN_ID
+      ORDER BY a.DOC_ID, a.TOKEN_ID DESC
+    `;
     } else if (userType === "user2") {
       query = `SELECT DOC_ID, TOKEN_EXP_TS FROM ${process.env.DB_USER2}.${process.env.DB_TABLE_SHARED_DOCS}`;
     } else {
