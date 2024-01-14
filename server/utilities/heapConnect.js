@@ -37,7 +37,6 @@ async function connectToHeap(documentId) {
     };
   } catch (error) {
     // log and throw any errors
-    console.log("heapConnect.js CHECKPOINT7");
     logger.error("connectToHeap error: " + error.message);
     throw error;
   }

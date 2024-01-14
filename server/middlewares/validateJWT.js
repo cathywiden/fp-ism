@@ -7,10 +7,6 @@ const logger = require("../utilities/logger");
 const secretKey = process.env.JWT_SECRET_KEY;
 
 function validateJWT(req, res, next) {
-  console.log("validateJWT middleware reached");
-
-  console.log("Request headers:", req.headers);
-
   const tokenHeader = req.headers["authorization"];
   logger.debug(`Authorization Header: ${tokenHeader}`);
 

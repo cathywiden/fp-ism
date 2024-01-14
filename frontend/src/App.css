@@ -36,3 +36,21 @@
     transform: rotate(360deg);
   }
 }
+
+.logout-container {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+}
+
+.welcome {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+}
+
+button {
+  background-color: white;
+  border: 1px solid black;
+  border-radius: 3px;
+}

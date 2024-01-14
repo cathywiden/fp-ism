@@ -3,7 +3,7 @@
 const logger = require("../utilities/logger");
 const { getUserWalletAddress } = require("../utilities/extractWalletAddress");
 const { getConnection } = require("../utilities/dbConnector");
-const { requestBlockchainAccess } = require("../utilities/smartContractUtils");
+const { requestAccessOnChain } = require("../utilities/smartContractUtils");
 const { logRequestDB, doesRequestExist } = require("../utilities/dbUtils");
 
 async function requestAccess(documentId, requester) {
@@ -18,7 +18,7 @@ async function requestAccess(documentId, requester) {
     );
     if (duplicateCheck === "No duplicates") {
       const userWalletAddress = await getUserWalletAddress(requester);
-      const transactionHash = await requestBlockchainAccess(
+      const transactionHash = await requestAccessOnChain(
         documentId,
         userWalletAddress
       );

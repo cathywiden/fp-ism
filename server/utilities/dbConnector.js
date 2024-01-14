@@ -3,7 +3,7 @@
 const oracledb = require("oracledb");
 require("dotenv").config({ path: "../.env" });
 
-// Database connection details
+// database connection details
 const connectString = `${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
 
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
@@ -37,7 +37,7 @@ async function initialize() {
 }
 
 async function close() {
-  await Promise.all(Object.values(pools).map(pool => pool.close()));
+  await Promise.all(Object.values(pools).map((pool) => pool.close()));
 }
 
 async function getConnection(userType) {

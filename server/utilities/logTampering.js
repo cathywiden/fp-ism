@@ -1,9 +1,9 @@
-const { logTampering } = require("./smartContractUtils");
+const { logTamperingOnChain } = require("./smartContractUtils");
 const { getConnection } = require("./dbConnector");
 const logger = require("./logger");
 require("dotenv").config({ path: "../.env" });
 
-const TAMPER_POLLING_INTERVAL = 600000; // 10 minutes
+const TAMPER_POLLING_INTERVAL = 50000; // 10 minutes
 
 // checks for tampering in the database
 async function isTamperedWithInDB() {
@@ -13,11 +13,11 @@ async function isTamperedWithInDB() {
     const query = `SELECT DOC_ID, CHECKSUM, TAMPERED_HASH, TAMPER_TS 
                        FROM ${process.env.DB_TABLE_CHECKSUM} 
                        WHERE TAMPERED_HASH IS NOT NULL AND LOG_TX_HASH IS NULL`;
-                       // select entries that have a tampered hash value but have not been sent to the chain yet
+    // select entries that have a tampered hash value but have not been sent to the chain yet
 
     const result = await connection.execute(query);
     for (const row of result.rows) {
-      const transaction = await logTampering(
+      const transaction = await logTamperingOnChain(
         row.DOC_ID,
         row.CHECKSUM,
         row.TAMPERED_HASH
@@ -25,8 +25,8 @@ async function isTamperedWithInDB() {
 
       if (transaction) {
         logger.debug(
-            `Updating database for document ID ${row.DOC_ID}. Transaction hash: ${transaction}`
-          );
+          `Updating database for document ID ${row.DOC_ID}. Transaction hash: ${transaction}`
+        );
         const updateQuery = `UPDATE ${process.env.DB_TABLE_CHECKSUM} 
                                      SET LOG_TX_HASH = :txHash
                                      WHERE DOC_ID = :docId`;
@@ -49,7 +49,31 @@ async function isTamperedWithInDB() {
   }
 }
 
+// helper function to mark tampering as logged
+async function markTamperingAsLogged(documentId, transactionHash) {
+  const connection = await getConnection("user2");
+  try {
+    const updateQuery = `
+      UPDATE ${process.env.DB_TABLE_CHECKSUM} 
+      SET LOG_TX_HASH = :txHash
+      WHERE DOC_ID = :docId`;
+
+    await connection.execute(updateQuery, {
+      txHash: transactionHash,
+      docId: documentId,
+    });
+    await connection.commit();
+  } catch (error) {
+    logger.error(`Error in markTamperingAsLogged: ${error.message}`);
+  } finally {
+    if (connection) {
+      await connection.close();
+    }
+  }
+}
+
 module.exports = {
   isTamperedWithInDB,
   TAMPER_POLLING_INTERVAL,
+  markTamperingAsLogged,
 };

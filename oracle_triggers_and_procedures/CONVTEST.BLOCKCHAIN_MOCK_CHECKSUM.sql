@@ -9,8 +9,12 @@ BEGIN
 
     -- if no entry exists, then proceed
     IF l_count = 0 THEN
-        -- retrieve the XML for the given document_id
-        SELECT XML INTO l_xml FROM CONVTEST."t_heap_eqiPaVxMTHqn$LEWCaD67w" WHERE DOCUMENT_ID = p_document_id;
+        -- retrieve the XML for the highest version of the given document_id
+        SELECT XML INTO l_xml FROM (
+            SELECT XML FROM CONVTEST."t_heap_eqiPaVxMTHqn$LEWCaD67w" 
+            WHERE DOCUMENT_ID = p_document_id 
+            ORDER BY VERSION DESC
+        ) WHERE ROWNUM = 1;
 
         -- compute the hash of the first 500 characters of the XML
         l_hash := RAWTOHEX(DBMS_CRYPTO.HASH(UTL_RAW.CAST_TO_RAW(DBMS_LOB.SUBSTR(l_xml, 500, 1)), DBMS_CRYPTO.HASH_SH256));
