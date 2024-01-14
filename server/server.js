@@ -2,6 +2,10 @@
 
 require("dotenv").config({ path: "../.env" });
 
+const express = require("express");
+const app = express();
+const authRoutes = require("./routes/authRoutes");
+
 // utilities
 const { initialize, close } = require("../server/utilities/dbConnector");
 const {
@@ -16,7 +20,7 @@ const logger = require("../server/utilities/logger");
 const { validateToken } = require("./access/tokenValidation");
 const validateJWT = require("./middlewares/validateJWT");
 const { determineUserRole } = require("./middlewares/roleDetermination");
-const { generateToken } = require("./utilities/JWTGenerator");
+// const { generateToken } = require("./utilities/JWTGenerator");
 
 // access functions
 const { grantAccess } = require("./access/grantAccess");
@@ -28,8 +32,8 @@ const { requestAccess } = require("./access/requestAccess");
 const {
   isTamperedWithInDB,
   TAMPER_POLLING_INTERVAL,
-  checkDocumentTampering,
 } = require("./utilities/logTampering");
+const checkDocumentTampering = require("./utilities/checkDocumentTampering");
 
 // polling shared documents
 const {
@@ -37,47 +41,14 @@ const {
   POLLING_INTERVAL,
 } = require("./utilities/pollSharedDocs");
 
-const express = require("express");
 const cors = require("cors");
 const port = process.env.PORT || 3000;
 
-const app = express();
 app.use(express.json());
 app.use(cors());
 app.set("json spaces", 2); // pretty-format logs
 
-// hardcoded credentials for MVP
-const USERS = {
-  user1: {
-    username: "user1",
-    password: "user1",
-    role: "Sharer, Auditor",
-    walletAddress: process.env.WALLET1,
-  },
-  user2: {
-    username: "user2",
-    password: "user2",
-    role: "Receiver",
-    walletAddress: process.env.WALLET2,
-  },
-};
-
-app.post("/login", (req, res) => {
-  const { username, password } = req.body;
-  const user = USERS[username];
-
-  if (user && user.password === password) {
-    const token = generateToken({
-      username: user.username,
-      role: user.role,
-      walletAddress: user.walletAddress,
-    });
-
-    res.json({ token });
-  } else {
-    res.status(401).send("Invalid credentials");
-  }
-});
+app.use("/", authRoutes);
 
 // fetch user roles from db
 app.get("/get-user-role", validateJWT, determineUserRole, (req, res) => {
