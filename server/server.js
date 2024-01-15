@@ -4,12 +4,17 @@ require("dotenv").config({ path: "../.env" });
 
 const express = require("express");
 const app = express();
+const cors = require("cors");
+
+// routes
 const authRoutes = require("./routes/authRoutes");
+const userRoleRoutes = require("./routes/userRoleRoutes");
+const documentRoutes = require("./routes/documentRoutes"); 
+const grantAccessRoutes = require("./routes/grantAccessRoutes");
 
 // utilities
 const { initialize, close } = require("../server/utilities/dbConnector");
 const {
-  getDocumentById,
   getAllSharedDocs,
   expireDocuments,
   EXPIRE_DOCUMENTS_INTERVAL,
@@ -20,7 +25,6 @@ const logger = require("../server/utilities/logger");
 const { validateToken } = require("./access/tokenValidation");
 const validateJWT = require("./middlewares/validateJWT");
 const { determineUserRole } = require("./middlewares/roleDetermination");
-// const { generateToken } = require("./utilities/JWTGenerator");
 
 // access functions
 const { grantAccess } = require("./access/grantAccess");
@@ -33,7 +37,6 @@ const {
   isTamperedWithInDB,
   TAMPER_POLLING_INTERVAL,
 } = require("./utilities/logTampering");
-const checkDocumentTampering = require("./utilities/checkDocumentTampering");
 
 // polling shared documents
 const {
@@ -41,7 +44,6 @@ const {
   POLLING_INTERVAL,
 } = require("./utilities/pollSharedDocs");
 
-const cors = require("cors");
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
@@ -49,80 +51,9 @@ app.use(cors());
 app.set("json spaces", 2); // pretty-format logs
 
 app.use("/", authRoutes);
-
-// fetch user roles from db
-app.get("/get-user-role", validateJWT, determineUserRole, (req, res) => {
-  res.json({ role: req.user.role });
-});
-
-app.get("/document/:id", validateToken, async (req, res) => {
-  try {
-    const documentId = req.params.id;
-    const userType = "user2";
-    logger.debug(
-      `Fetching document with ID: ${documentId} for userType: ${userType}`
-    );
-    const document = await getDocumentById(documentId, userType);
-
-    if (!document || document.length === 0) {
-      logger.info("No document found or empty document");
-      return res.status(404).send("The specified document ID does not exist!");
-    }
-
-    // check for tampering
-    const isTampered = await checkDocumentTampering(documentId);
-    logger.debug(`isTampered: ${isTampered}`);
-
-    // send a single response with document and tampering status
-    res.json({ document, isTampered });
-  } catch (error) {
-    logger.error(`Error in route handler: ${error.message}`);
-    res.status(500).send("Error fetching document");
-  }
-});
-
-app.post(
-  "/grant-access",
-  validateToken,
-  determineUserRole,
-  async (req, res) => {
-    logger.debug(`Request headers in /grant:, ${req.headers}`);
-
-    if (req.user.role.includes("Sharer, Auditor")) {
-      try {
-        logger.debug(`Grantor: ${req.user}`);
-        logger.debug(`Grantor user role: ${req.user.role}`);
-
-        const { documentId, targetUser, documentHash, expiryInSeconds } =
-          req.body;
-
-        await grantAccess(
-          documentId,
-          targetUser,
-          documentHash,
-          expiryInSeconds
-          // true
-        );
-        res.status(200).json({ message: "Document shared successfully" });
-      } catch (error) {
-        logger.error(`Error in grant endpoint: ${error}`);
-        if (error.code === "CALL_EXCEPTION") {
-          res.status(500).json({
-            error: "Blockchain transaction failed",
-            details: error.message,
-          });
-        } else {
-          logger.error(`Error in grant endpoint: ${error.message}`);
-          res.status(500).json({ error: error.message });
-        }
-      }
-    } else {
-      res
-        .status(403)
-        .json({ error: "Unauthorized: Only user1 can grant access." });
-    }
-  }
-);
+app.use("/get-user-role", validateJWT, determineUserRole, userRoleRoutes); 
+app.use("/document", documentRoutes); 
+app.use("/grant-access", grantAccessRoutes);
 
 // endpoint to revoke access
 app.post(
