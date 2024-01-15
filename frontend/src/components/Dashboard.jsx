@@ -153,21 +153,30 @@ function Dashboard({ token, lastUpdated }) {
     }
   };
 
-  const handleDirectGrant = () => {
+  const handleDirectGrant = async () => {
     if (!directDocId.trim() || !directTargetUser.trim()) {
       alert("Please enter both Document ID and Target User.");
       return;
     }
-
-    setGrantStatus("");
-    setGrantStatus(`Granting access in progress...`);
-
+  
+    setGrantStatus("Granting access in progress..."); 
+  
     const expiryTime = directExpiryInSeconds.trim()
       ? parseInt(directExpiryInSeconds, 10)
       : 36000; // default ten hours
+  
+      try {
+        await handleGrant(directDocId, directTargetUser, expiryTime); // wait for handleGrant to complete!
+        setGrantStatus("Access has been granted");
+      } catch (error) {
+        setGrantStatus(`Error granting access: ${error.message}`);
+      }
 
-    handleGrant(directDocId, directTargetUser, expiryTime);
+      setTimeout(() => {
+        setGrantStatus("");
+      }, 2000); // clear success msg
   };
+  
 
   const handleDeny = async (docId, targetUser, tokenId) => {
     const actionKey = getActionStatusKey(docId, tokenId);
@@ -262,8 +271,70 @@ function Dashboard({ token, lastUpdated }) {
     }
   };
 
-  // placeholder for now!
-  const handleRenew = (docId) => console.log("Renew", docId);
+  const handleRenew = async (docId, tokenId) => {
+    const actionKey = getActionStatusKey(docId, tokenId);
+
+    setActionStatus((prevStatus) => ({
+      ...prevStatus,
+      [actionKey]: "in progress",
+    }));
+
+    console.log("Document ID to renew:");
+    console.log(docId);
+
+    setActionStatus((prevStatus) => ({
+      ...prevStatus,
+      [actionKey]: "in progress",
+    }));
+
+    try {
+      // additional time for renewal
+      const additionalTimeInSeconds = prompt(
+        "Enter additional time in seconds for document renewal:",
+        "7200" // default to 2 hours
+      );
+
+      if (!additionalTimeInSeconds) return;
+
+      // Log the request payload before sending
+      console.log("Request Payload:");
+      console.log({
+        documentId: docId,
+        additionalTimeInSeconds: parseInt(additionalTimeInSeconds, 10),
+      });
+
+      const response = await fetch("http://localhost:3000/renew-access/:id", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          documentId: docId,
+          additionalTimeInSeconds: parseInt(additionalTimeInSeconds, 10),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      setActionStatus((prevStatus) => ({
+        ...prevStatus,
+        [actionKey]: "completed",
+      }));
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      setActionStatus((prevStatus) => ({ ...prevStatus, [actionKey]: null }));
+      setLastAction({ action: "renew", timestamp: Date.now() });
+    } catch (error) {
+      setActionStatus((prevStatus) => ({
+        ...prevStatus,
+        [actionKey]: "error",
+      }));
+    }
+  };
 
   return (
     <div>

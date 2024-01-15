@@ -171,7 +171,10 @@ async function checkAccessOnChain(userAddress, documentId) {
   );
 
   try {
+    logger.info(`Inside try block: Document ID: ${documentId}`);
+
     const hasAccess = await DAC.hasAccess(userAddress, documentId);
+
     return hasAccess;
   } catch (error) {
     logger.error(

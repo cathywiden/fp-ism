@@ -9,8 +9,7 @@ const {
   executeBlockchainMockChecksum,
   checkIfAlreadyShared,
   checkForExistingRequest,
-  updateRequest,
-  logActionInDB,
+  logAction,
 } = require("../utilities/dbUtils");
 
 async function grantAccess(
@@ -54,8 +53,11 @@ async function grantAccess(
     if (requestInfo && requestInfo.requestTxHash) {
       logger.debug("Found existing request, updating it.");
 
-      await updateRequest(connection, documentId, targetUser, "grant", {
+      // update the existing request
+      await logAction(connection, "update-grant", {
+        documentId: documentId,
         tokenId: tokenId,
+        targetUser: targetUser,
         transactionHash: transactionHash,
         expiryInSeconds: expiryInSeconds,
       });
@@ -63,7 +65,9 @@ async function grantAccess(
       logger.debug(
         "No existing request found with the given criteria. Granting access."
       );
-      await logActionInDB(connection, "grant", {
+
+      // create new grant
+      await logAction(connection, "grant", {
         documentId: documentId,
         tokenId: tokenId,
         targetUser: targetUser,

@@ -1,5 +1,5 @@
 // server/access/tokenValidation.js
-
+require("dotenv").config({ path: "../../.env" });
 const jwt = require("jsonwebtoken");
 const { checkAccessOnChain } = require("../utilities/smartContractUtils");
 const { getUserWalletAddress } = require("../utilities/extractWalletAddress");
@@ -22,11 +22,14 @@ async function validateToken(req, res, next) {
         req.originalUrl === "/request-access" ||
         req.originalUrl === "/grant-access" ||
         req.originalUrl === "/revoke-access" ||
-        req.originalUrl === "/deny-access"
+        req.originalUrl === "/deny-access" ||
+        req.originalUrl === "/renew-access"
       ) {
         return next();
       }
 
+      const documentId = req.params.id;
+      console.log(documentId);
       // check access with wallet address from token
       const hasAccess = await checkAccessOnChain(
         req.user.walletAddress,
@@ -47,7 +50,8 @@ async function validateToken(req, res, next) {
     req.originalUrl === "/request-access" ||
     req.originalUrl === "/grant-access" ||
     req.originalUrl === "/revoke-access" ||
-    req.originalUrl === "/deny-access"
+    req.originalUrl === "/deny-access" ||
+    req.originalUrl === "/renew-access"
   ) {
     return next();
   }
@@ -66,6 +70,8 @@ async function validateToken(req, res, next) {
 }
 
 async function isTokenValid(userAddress, documentId) {
+  logger.debug(`isTokenValid Document ID: ${documentId}`);
+
   return await checkAccessOnChain(userAddress, documentId);
 }
 
