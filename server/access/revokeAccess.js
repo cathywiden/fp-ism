@@ -5,7 +5,7 @@ const logger = require("../utilities/logger");
 const { getConnection } = require("../utilities/dbConnector");
 const { revokeAccessOnChain } = require("../utilities/smartContractUtils");
 const { getTokenId } = require("../utilities/getTokenId");
-const { logActionInDB } = require("../utilities/dbUtils");
+const { logAction } = require("../utilities/dbUtils");
 
 async function revokeAccess(documentId, reason, targetUser) {
   let connection;
@@ -28,7 +28,7 @@ async function revokeAccess(documentId, reason, targetUser) {
       `revokeAccess.js Transaction hash for revocation: ${transactionHash}`
     );
 
-    await logActionInDB(connection, "revoke", {
+    await logAction(connection, "revoke", {
       tokenId: tokenId,
       revokeTime: revokeTime,
       transactionHash: transactionHash,

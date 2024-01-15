@@ -4,7 +4,7 @@ const { getConnection } = require("../utilities/dbConnector");
 const logger = require("../utilities/logger");
 require("dotenv").config({ path: "../.env" });
 const {
-  logActionInDB,
+  logAction,
   updateRequest,
   checkForExistingRequest,
 } = require("../utilities/dbUtils");
@@ -52,7 +52,7 @@ async function denyRequest(documentId, targetUser, reason) {
         "No existing request found with the given criteria. Denying access."
       );
 
-      await logActionInDB(connection, "deny", {
+      await logAction(connection, "deny", {
         documentId: documentId,
         targetUser: targetUser,
         reason: reason,

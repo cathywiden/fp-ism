@@ -15,6 +15,7 @@ const revokeAccessRoutes = require("./routes/revokeAccessRoutes");
 const requestAccessRoutes = require("./routes/requestAccessRoutes");
 const denyAccessRoutes = require("./routes/denyAccessRoutes");
 const sharedDocsRoutes = require("./routes/sharedDocsRoutes");
+const renewAccessRoutes = require("./routes/renewAccessRoutes");
 
 // utilities
 const { initialize, close } = require("../server/utilities/dbConnector");
@@ -34,12 +35,6 @@ const {
   TAMPER_POLLING_INTERVAL,
 } = require("./utilities/logTampering");
 
-// polling shared documents
-const {
-  checkSharedDocs,
-  POLLING_INTERVAL,
-} = require("./utilities/pollSharedDocs");
-
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
@@ -54,6 +49,8 @@ app.use("/revoke-access", revokeAccessRoutes);
 app.use("/request-access", requestAccessRoutes);
 app.use("/deny-access", denyAccessRoutes);
 app.use("/shared-docs", sharedDocsRoutes);
+app.use("/renew-access", validateJWT, determineUserRole, renewAccessRoutes);
+
 
 async function startServer() {
   try {
@@ -61,7 +58,6 @@ async function startServer() {
     logger.info("Database pool initialized successfully.");
     app.listen(port, () => {
       logger.info(`Server running on port ${port}`);
-      setInterval(checkSharedDocs, POLLING_INTERVAL);
       setInterval(isTamperedWithInDB, TAMPER_POLLING_INTERVAL);
       setInterval(expireDocuments, EXPIRE_DOCUMENTS_INTERVAL);
     });

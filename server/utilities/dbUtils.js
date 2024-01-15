@@ -64,8 +64,6 @@ ORDER BY a.DOC_ID, a.TOKEN_ID DESC
 
     logger.debug(`Executing query: ${query}`);
     const result = await connection.execute(query);
-
-    console.log("Query result:", result.rows);
     return result.rows;
   } catch (error) {
     logger.error(`Error in getAllSharedDocs: ${error.message}`);
@@ -87,8 +85,6 @@ async function expireDocuments() {
     // procedure set in Oracle will set status to "expired" based on timestamps
     await connection.execute(`BEGIN blockchain_expire_documents; END;`);
     await connection.commit();
-
-    console.log("expireDocuments procedure executed successfully.");
   } catch (err) {
     console.error("Error executing expireDocuments procedure:", err);
   } finally {
@@ -187,7 +183,6 @@ async function doesRequestExist(connection, documentId, requester) {
 
   // check if document exists in heap (check for actual document data, not ID)
   if (docExistsResult.rows[0].COUNT === 0) {
-    console.log("Document data not found");
     return "Document data not found";
   } else {
     // check if a request or grant already exists
@@ -255,67 +250,8 @@ async function checkForExistingRequest(connection, documentId, targetUser) {
   }
 }
 
-// update an existing request for "grant" or "deny"
-// if a request already exists, update the SAME row with grant details
-async function updateRequest(
-  connection,
-  documentId,
-  targetUser,
-  actionType,
-  details
-) {
-  logger.debug(
-    `Before executing UPDATE: DOC_ID = ${documentId}, TARGET_USER = ${targetUser}`
-  );
-
+async function logAction(connection, actionType, details) {
   const currentTime = Math.floor(Date.now() / 1000);
-  let updateQuery;
-  let queryParams;
-
-  switch (actionType) {
-    case "grant":
-      const tokenExpiry = currentTime + details.expiryInSeconds;
-      updateQuery = `UPDATE ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS}  
-                     SET TOKEN_ID = :tokenId, GRANT_TS = :currentTime, TOKEN_EXP_TS = :tokenExpiry, GRANT_TX_HASH = :transactionHash, STATUS = 'granted'
-                     WHERE DOC_ID = :documentId AND STATUS = 'requested'`;
-      queryParams = {
-        documentId: documentId,
-        tokenId: details.tokenId,
-        currentTime: currentTime,
-        tokenExpiry: tokenExpiry,
-        transactionHash: details.transactionHash,
-      };
-      break;
-
-    case "deny":
-      updateQuery = `UPDATE ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS}  
-                     SET DENY_TS = :currentTime, DENY_TX_HASH = :transactionHash, STATUS = 'denied', REASON = :reason
-                     WHERE DOC_ID = :documentId AND STATUS = 'requested'`;
-      queryParams = {
-        documentId: documentId,
-        currentTime: currentTime,
-        transactionHash: details.transactionHash,
-        reason: details.reason,
-      };
-      break;
-
-    default:
-      logger.error("Invalid action type for updating request");
-      return;
-  }
-
-  try {
-    const result = await connection.execute(updateQuery, queryParams);
-    logger.debug(`UPDATE Query executed. Rows updated: ${result.rowsAffected}`);
-    await connection.commit();
-  } catch (error) {
-    logger.error(
-      `Error in updateExistingRequest (${actionType}): ${error.message}`
-    );
-  }
-}
-
-async function logActionInDB(connection, actionType, details) {
   let query;
   let queryParams;
 
@@ -338,11 +274,23 @@ async function logActionInDB(connection, actionType, details) {
         documentId: details.documentId,
         tokenId: details.tokenId,
         targetUser: details.targetUser,
-        requestTimestamp: details.requestInfo
-          ? details.requestInfo.requestTimestamp
-          : null,
+        requestTimestamp: details.requestTimestamp,
         shareTime: shareTime,
         tokenExpiry: tokenExpiry,
+        transactionHash: details.transactionHash,
+      };
+      break;
+
+    case "update-grant":
+      const updateTokenExpiry = currentTime + details.expiryInSeconds;
+      query = `UPDATE ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS}  
+                 SET TOKEN_ID = :tokenId, GRANT_TS = :currentTime, TOKEN_EXP_TS = :updateTokenExpiry, GRANT_TX_HASH = :transactionHash, STATUS = 'granted'
+                 WHERE DOC_ID = :documentId AND STATUS = 'requested'`;
+      queryParams = {
+        documentId: details.documentId,
+        tokenId: details.tokenId,
+        currentTime: currentTime,
+        updateTokenExpiry: updateTokenExpiry,
         transactionHash: details.transactionHash,
       };
       break;
@@ -350,8 +298,8 @@ async function logActionInDB(connection, actionType, details) {
     case "deny":
       const denyTime = Math.floor(Date.now() / 1000);
       query = `INSERT INTO ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} 
-      (DOC_ID, TARGET_USER, DENY_TS, REASON, DENY_TX_HASH) 
-     VALUES (:documentId, :targetUser, :denyTime, :denyReason, :transactionHash)`;
+        (DOC_ID, TARGET_USER, DENY_TS, REASON, DENY_TX_HASH) 
+       VALUES (:documentId, :targetUser, :denyTime, :denyReason, :transactionHash)`;
       queryParams = {
         documentId: details.documentId,
         targetUser: details.targetUser,
@@ -362,13 +310,26 @@ async function logActionInDB(connection, actionType, details) {
       break;
 
     case "revoke":
-      const revokeTime = Math.floor(Date.now() / 1000);
       query = `UPDATE ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} SET REV_TS = :revokeTime, REV_TX_HASH = :transactionHash, REASON = :reason, STATUS = 'revoked' WHERE TOKEN_ID = :tokenId`;
       queryParams = {
         tokenId: details.tokenId,
-        revokeTime: revokeTime,
+        revokeTime: currentTime,
         transactionHash: details.transactionHash,
         reason: details.reason,
+      };
+      break;
+
+    case "renew":
+      query = `UPDATE ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} SET 
+                  TOKEN_EXP_TS = :tokenExpiry, 
+                  RENEW_TS = :renewTime, 
+                  RENEW_TX_HASH = :transactionHash, 
+                  STATUS = 'granted'
+                WHERE TOKEN_ID = :tokenId`;
+      queryParams = {
+        tokenId: details.tokenId,tokenExpiry: details.tokenExpiry,
+        transactionHash: details.transactionHash,
+        renewTime: currentTime,
       };
       break;
 
@@ -422,6 +383,5 @@ module.exports = {
   getAllSharedDocs,
   expireDocuments,
   EXPIRE_DOCUMENTS_INTERVAL,
-  updateRequest,
-  logActionInDB,
+  logAction,
 };
