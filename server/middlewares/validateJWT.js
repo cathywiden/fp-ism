@@ -1,4 +1,4 @@
-// middlewares/validateJWT.js
+// server/middlewares/validateJWT.js
 
 require("dotenv").config({ path: "../../.env" });
 const jwt = require("jsonwebtoken");

@@ -1,4 +1,4 @@
-// middlewares/roleDetermination.js
+// server/middlewares/roleDetermination.js
 
 require("dotenv").config({ path: "../../.env" });
 const { getConnection } = require("../utilities/dbConnector");
