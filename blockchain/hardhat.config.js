@@ -1,5 +1,3 @@
-// blockchain/hardhat.config.js
-
 require("dotenv").config();
 require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-etherscan");
@@ -7,6 +5,12 @@ require("@nomiclabs/hardhat-etherscan");
 module.exports = {
   solidity: {
     version: "0.8.21",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200 
+      }
+    }
   },
 
   networks: {

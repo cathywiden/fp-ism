@@ -1,23 +1,23 @@
-// server/middlewares/roleDetermination.js
-
 require("dotenv").config({ path: "../../.env" });
 const { getConnection } = require("../utilities/dbConnector");
-const logger = require("../utilities/logger"); 
+const logger = require("../utilities/logger");
 
 // mapping token "user1" and "user2" to DB credentials
 const userToDbUserMap = {
-  "user1": process.env.DB_USER1,
-  "user2": process.env.DB_USER2
+  user1: process.env.DB_USER1,
+  user2: process.env.DB_USER2,
 };
 
 async function determineUserRole(req, res, next) {
   // only proceed if JWT user is available
   if (req.user) {
-    let connection; 
+    let connection;
     const walletAddress = req.user.walletAddress;
     const dbUser = userToDbUserMap[req.user.username]; // map JWT username to DB user
 
-    logger.debug(`Determining role for DB user: ${dbUser} with wallet address: ${walletAddress}`);
+    logger.debug(
+      `Determining role for DB user: ${dbUser} with wallet address: ${walletAddress}`
+    );
     req.dbUser = dbUser; // attach resolved DB username to the req object
 
     logger.debug(`Mapped JWT username to DB user: ${dbUser}`);
@@ -49,6 +49,5 @@ async function determineUserRole(req, res, next) {
     next(); // skip to next middleware or route handler
   }
 }
-
 
 module.exports = { determineUserRole };

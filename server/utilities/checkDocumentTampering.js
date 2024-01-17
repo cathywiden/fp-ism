@@ -1,5 +1,3 @@
-// server/utilities/checkDocumentTampering.js
-
 const { getConnection } = require("./dbConnector");
 const logger = require("./logger");
 require("dotenv").config({ path: "../.env" });

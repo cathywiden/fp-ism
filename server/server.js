@@ -1,5 +1,3 @@
-//  server/server.js
-
 require("dotenv").config({ path: "../.env" });
 
 const express = require("express");
@@ -10,17 +8,11 @@ const { setupWebhookListener } = require("./utilities/webhookHandler");
 const websocket = require("ws");
 const wss = new websocket.Server({ port: 3001 });
 
-// routes
-const authRoutes = require("./routes/authRoutes");
-const userRoleRoutes = require("./routes/userRoleRoutes");
-const documentRoutes = require("./routes/documentRoutes");
-const grantAccessRoutes = require("./routes/grantAccessRoutes");
-const revokeAccessRoutes = require("./routes/revokeAccessRoutes");
-const requestAccessRoutes = require("./routes/requestAccessRoutes");
-const denyAccessRoutes = require("./routes/denyAccessRoutes");
-const sharedDocsRoutes = require("./routes/sharedDocsRoutes");
-const renewAccessRoutes = require("./routes/renewAccessRoutes");
-const notificationRoutes = require("./routes/notificationRoutes");
+const port = process.env.PORT || 3000;
+
+app.use(express.json());
+app.use(cors());
+app.set("json spaces", 2); // pretty-format logs
 
 // utilities
 const { initialize, close } = require("../server/utilities/dbConnector");
@@ -40,12 +32,19 @@ const {
   TAMPER_POLLING_INTERVAL,
 } = require("./utilities/logTampering");
 
-const port = process.env.PORT || 3000;
+// routes
+const authRoutes = require("./routes/authRoutes");
+const userRoleRoutes = require("./routes/userRoleRoutes");
+const documentRoutes = require("./routes/documentRoutes");
+const grantAccessRoutes = require("./routes/grantAccessRoutes");
+const revokeAccessRoutes = require("./routes/revokeAccessRoutes");
+const requestAccessRoutes = require("./routes/requestAccessRoutes");
+const denyAccessRoutes = require("./routes/denyAccessRoutes");
+const sharedDocsRoutes = require("./routes/sharedDocsRoutes");
+const renewAccessRoutes = require("./routes/renewAccessRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
-app.use(express.json());
-app.use(cors());
-app.set("json spaces", 2); // pretty-format logs
-
+// endpoints
 app.use("/", authRoutes);
 app.use("/get-user-role", validateJWT, determineUserRole, userRoleRoutes);
 app.use("/document", documentRoutes);

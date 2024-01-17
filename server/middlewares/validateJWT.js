@@ -1,5 +1,3 @@
-// server/middlewares/validateJWT.js
-
 require("dotenv").config({ path: "../../.env" });
 const jwt = require("jsonwebtoken");
 const logger = require("../utilities/logger");

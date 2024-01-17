@@ -1,5 +1,3 @@
-// server/access/getTokenId.js
-
 require("dotenv").config({ path: "../.env" });
 const { getConnection } = require("./dbConnector");
 const logger = require("./logger");

@@ -1,3 +1,6 @@
+-- procedure to be executed from backend reguarly
+-- sets all expired documents' status to expired
+
 CREATE OR REPLACE PROCEDURE CONVTEST.blockchain_expire_docs AS
     current_ts NUMBER;
 BEGIN

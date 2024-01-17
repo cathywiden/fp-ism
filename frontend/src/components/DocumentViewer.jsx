@@ -1,5 +1,3 @@
-// frontend/src/components/DocumentViewer.jsx
-
 import React, { useState, useEffect } from "react";
 import "../DocumentViewer.css";
 
@@ -28,8 +26,15 @@ function DocumentViewer({ token }) {
     const ws = new WebSocket("ws://localhost:3001");
     ws.onmessage = (event) => {
       const notification = JSON.parse(event.data);
-      const relevantNotifications = ["AccessGranted", "AccessRevoked", "AccessDenied", "AccessRenewed"];
-      const isRelevantNotification = relevantNotifications.includes(notification.type) && notification.recipient === "BCCONV";
+      const relevantNotifications = [
+        "AccessGranted",
+        "AccessRevoked",
+        "AccessDenied",
+        "AccessRenewed",
+      ];
+      const isRelevantNotification =
+        relevantNotifications.includes(notification.type) &&
+        notification.recipient === "BCCONV";
 
       if (isRelevantNotification) {
         fetchSharedDocs();
@@ -106,7 +111,6 @@ function DocumentViewer({ token }) {
 
   return (
     <div className="doc-list">
-      {/* combined input field &&dropdown list */}
       <input
         list="docList"
         value={documentId}

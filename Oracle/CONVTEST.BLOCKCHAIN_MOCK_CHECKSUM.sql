@@ -1,3 +1,8 @@
+-- upon document sharing, find last version of the document
+-- extract XML
+-- calculate mock checksum by hashing the first 500 chars
+-- insert into checksum log table
+
 CREATE OR REPLACE PROCEDURE CONVTEST.BLOCKCHAIN_MOCK_CHECKSUM (p_document_id IN CHAR)
 IS
     l_xml CLOB;

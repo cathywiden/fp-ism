@@ -1,5 +1,3 @@
-// server/utilities/JWTgenerator.js
-
 require("dotenv").config({ path: "../../.env" });
 const logger = require("./logger");
 const jwt = require("jsonwebtoken");

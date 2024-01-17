@@ -1,5 +1,3 @@
-// websocketManager.js
-
 import { toast } from "react-hot-toast";
 let socket = null;
 

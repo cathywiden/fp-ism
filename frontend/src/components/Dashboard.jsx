@@ -1,5 +1,3 @@
-// frontend/src/components/Dashboard.js
-
 import React, { useState, useEffect } from "react";
 import "../Dashboard.css";
 
@@ -115,7 +113,7 @@ function Dashboard({ token, lastUpdated }) {
     }));
 
     // must pass in expiry in seconds
-    const expiryInSeconds = prompt("Enter validity time in seconds:", "5000"); // default ten hours
+    const expiryInSeconds = prompt("Enter validity time in seconds:", "36000"); // default ten hours
     if (!expiryInSeconds) return;
     try {
       const response = await fetch("http://localhost:3000/grant-access", {

@@ -1,10 +1,9 @@
-// server/utilities/dbUtils.js
-require("dotenv").config({ path: "../.env" });
 const logger = require("./logger");
 const { getConnection } = require("./dbConnector");
 const { connectToHeap } = require("./heapConnect");
+require("dotenv").config({ path: "../.env" });
 
-const EXPIRE_DOCUMENTS_INTERVAL = 100000; // run batch job in DB every 100 secs
+const EXPIRE_DOCUMENTS_INTERVAL = 300000; // run batch job in DB every 5 min
 
 // query document by document_id
 async function getDocumentById(document_id, userType) {

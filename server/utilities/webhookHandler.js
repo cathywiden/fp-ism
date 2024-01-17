@@ -1,5 +1,3 @@
-// server/utilities/webhookHandler.js
-
 async function fetchWrapper(...args) {
   const { default: fetch } = await import("node-fetch");
   return fetch(...args);

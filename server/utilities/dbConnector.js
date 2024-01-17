@@ -1,5 +1,3 @@
-// server/utilities/dbConnector.js
-
 const oracledb = require("oracledb");
 require("dotenv").config({ path: "../.env" });
 
