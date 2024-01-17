@@ -6,13 +6,14 @@ const { getConnection } = require("../utilities/dbConnector");
 const { revokeAccessOnChain } = require("../utilities/smartContractUtils");
 const { getTokenId } = require("../utilities/getTokenId");
 const { logAction } = require("../utilities/dbUtils");
+const eventEmitter = require("../utilities/eventEmitter");
 
-async function revokeAccess(documentId, reason, targetUser) {
+async function revokeAccess(documentId, reason) {
   let connection;
   try {
     connection = await getConnection("user1");
 
-    const tokenId = await getTokenId(documentId);
+    const { tokenId, targetUser } = await getTokenId(documentId);
     logger.info(`revokeAccess.js Token ID for revocation: ${tokenId}`);
 
     if (!tokenId) {
@@ -23,9 +24,21 @@ async function revokeAccess(documentId, reason, targetUser) {
     }
 
     const revokeTime = Math.floor(Date.now() / 1000);
+
     const transactionHash = await revokeAccessOnChain(tokenId, reason);
     logger.info(
       `revokeAccess.js Transaction hash for revocation: ${transactionHash}`
+    );
+
+    // emit event for toast notif on frontend
+    eventEmitter.emit("accessChanged", {
+      type: "AccessRevoked",
+      recipient: targetUser,
+      documentId: documentId,
+    });
+
+    logger.info(
+      `Event emitted for access change: ${documentId}, ${targetUser}`
     );
 
     await logAction(connection, "revoke", {

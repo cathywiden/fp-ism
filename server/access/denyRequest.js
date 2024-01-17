@@ -1,13 +1,10 @@
 // server/access/denyRequest.js
 
+require("dotenv").config({ path: "../.env" });
 const { getConnection } = require("../utilities/dbConnector");
 const logger = require("../utilities/logger");
-require("dotenv").config({ path: "../.env" });
-const {
-  logAction,
-  updateRequest,
-  checkForExistingRequest,
-} = require("../utilities/dbUtils");
+const eventEmitter = require("../utilities/eventEmitter");
+const { logAction, checkForExistingRequest } = require("../utilities/dbUtils");
 const { denyRequestOnChain } = require("../utilities/smartContractUtils");
 const { getUserWalletAddress } = require("../utilities/extractWalletAddress");
 
@@ -40,7 +37,16 @@ async function denyRequest(documentId, targetUser, reason) {
       if (transactionHash) {
         logger.debug(`Transaction hash: ${transactionHash}`);
 
-        await updateRequest(connection, documentId, targetUser, "deny", {
+        // emit event for toast notif on frontend
+        eventEmitter.emit("accessChanged", {
+          type: "AccessDenied",
+          recipient: targetUser,
+          documentId: documentId,
+        });
+
+        await logAction(connection, "deny", {
+          documentId: documentId,
+          targetUser: targetUser,
           reason: reason,
           transactionHash: transactionHash,
         });
@@ -51,13 +57,6 @@ async function denyRequest(documentId, targetUser, reason) {
       logger.debug(
         "No existing request found with the given criteria. Denying access."
       );
-
-      await logAction(connection, "deny", {
-        documentId: documentId,
-        targetUser: targetUser,
-        reason: reason,
-        transactionHash: transactionHash,
-      });
     }
   } catch (error) {
     logger.error(`Error in denying access: ${error.message}`);

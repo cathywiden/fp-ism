@@ -3,6 +3,7 @@
 require("dotenv").config({ path: "../.env" });
 const { getConnection } = require("../utilities/dbConnector");
 const logger = require("../utilities/logger");
+const eventEmitter = require("../utilities/eventEmitter");
 const { getUserWalletAddress } = require("../utilities/extractWalletAddress");
 const { mintAccessOnChain } = require("../utilities/smartContractUtils");
 const {
@@ -29,6 +30,10 @@ async function grantAccess(
       return; // exit early if doc already shared
     }
 
+    // check if there is an unprocessed request 
+    // from the same user, for the same doc
+    // would be more reliable to check on-chain,
+    // using checkForExistingrequestOnChain() 
     const requestInfo = await checkForExistingRequest(
       connection,
       documentId,
@@ -44,6 +49,16 @@ async function grantAccess(
       documentId,
       documentHash,
       expiryInSeconds
+    );
+
+    // emit event for toast notif on frontend
+    eventEmitter.emit("accessChanged", {
+      type: "AccessGranted",
+      recipient: targetUser,
+      documentId: documentId,
+    });
+    logger.info(
+      `Event emitted for access change: ${documentId}, ${targetUser}`
     );
 
     if (!transactionHash || tokenId === null || tokenId === undefined) {
