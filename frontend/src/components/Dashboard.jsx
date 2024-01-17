@@ -233,7 +233,7 @@ function Dashboard({ token, lastUpdated }) {
       [actionKey]: "in progress",
     }));
     const reason = prompt("Enter the reason for revocation:");
-    if (!reason) return; 
+    if (!reason) return;
 
     try {
       const response = await fetch("http://localhost:3000/revoke-access", {

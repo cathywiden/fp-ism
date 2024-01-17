@@ -7,7 +7,7 @@ import LoginForm from "./components/LoginForm";
 import Dashboard from "./components/Dashboard";
 import "./App.css";
 import { Toaster } from "react-hot-toast";
-import { setupWebhook } from "./api/webhooks";
+import { getSocket, setupWebhook } from "./api/webhooks";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -18,6 +18,12 @@ function App() {
     if (savedToken) {
       const decodedUser = jwtDecode(savedToken);
       setUser(decodedUser);
+      return () => {
+        const ws = getSocket();
+        if (ws) {
+          ws.close();
+        }
+      };
     }
   }, []);
 

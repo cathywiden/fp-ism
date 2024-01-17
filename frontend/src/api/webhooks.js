@@ -8,6 +8,9 @@ export function getSocket() {
 }
 
 function setupWebhook() {
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    return; // exit if socket already open
+  }
   socket = new WebSocket("ws://localhost:3001");
 
   socket.onopen = () => {
@@ -29,21 +32,25 @@ function setupWebhook() {
           `Access to document ${notification.documentId} has been revoked from ${notification.recipient}`
         );
         break;
-        case "AccessDenied":
-          toast(
-            `Access to document ${notification.documentId} has been denied for ${notification.recipient}`
-          );
-          break;
-          case "AccessRequested":
-          toast(
-            `Access to document ${notification.documentId} has been requested by ${notification.recipient}`
-          );
-          break;
+      case "AccessDenied":
+        toast(
+          `Access to document ${notification.documentId} has been denied for ${notification.recipient}`
+        );
+        break;
+      case "AccessRequested":
+        toast(
+          `Access to document ${notification.documentId} has been requested by ${notification.recipient}`
+        );
+        break;
+      case "AccessRenewed":
+        toast(
+          `Access to document ${notification.documentId} has been renewed for ${notification.recipient}`
+        );
+        break;
       default:
         console.log("Unhandled notification type:", notification.type);
     }
   };
-
 }
 
 export { setupWebhook };

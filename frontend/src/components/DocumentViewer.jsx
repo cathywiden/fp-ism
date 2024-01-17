@@ -25,7 +25,22 @@ function DocumentViewer({ token }) {
       }
     };
 
+    const ws = new WebSocket("ws://localhost:3001");
+    ws.onmessage = (event) => {
+      const notification = JSON.parse(event.data);
+      const relevantNotifications = ["AccessGranted", "AccessRevoked", "AccessDenied", "AccessRenewed"];
+      const isRelevantNotification = relevantNotifications.includes(notification.type) && notification.recipient === "BCCONV";
+
+      if (isRelevantNotification) {
+        fetchSharedDocs();
+      }
+    };
+
     fetchSharedDocs();
+
+    return () => {
+      ws.close();
+    };
   }, [token]);
 
   async function fetchDocument() {
