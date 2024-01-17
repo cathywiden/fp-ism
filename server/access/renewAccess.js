@@ -29,27 +29,29 @@ async function renewAccess(documentId, additionalTimeInSeconds) {
 
     const transactionHash = await renewAccessOnChain(tokenId, newExpiryTime);
 
-    // emit event for toast notif on frontend
-    eventEmitter.emit("accessChanged", {
-      type: "AccessRenewed",
-      recipient: targetUser,
-      documentId: documentId,
-    });
-    logger.info(
-      `Event emitted for access change: ${documentId}, ${targetUser}`
-    );
+    if (transactionHash) {
+      // emit event for toast notif on frontend
+      eventEmitter.emit("accessChanged", {
+        type: "AccessRenewed",
+        recipient: targetUser,
+        documentId: documentId,
+      });
+      logger.info(
+        `Event emitted for access change: ${documentId}, ${targetUser}`
+      );
 
-    await logAction(connection, "renew", {
-      tokenId: tokenId,
-      tokenExpiry: newExpiryTime,
-      transactionHash: transactionHash,
-      renewTime: currentTime,
-    });
+      await logAction(connection, "renew", {
+        tokenId: tokenId,
+        tokenExpiry: newExpiryTime,
+        transactionHash: transactionHash,
+        renewTime: currentTime,
+      });
 
-    logger.info(
-      `Token ${tokenId} renewed successfully. Transaction hash: ${transactionHash}`
-    );
-    return transactionHash;
+      logger.info(
+        `Token ${tokenId} renewed successfully. Transaction hash: ${transactionHash}`
+      );
+      return transactionHash;
+    }
   } catch (error) {
     logger.error(
       `Error renewing access for document ID ${documentId}: ${error.message}`

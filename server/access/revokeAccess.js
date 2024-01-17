@@ -22,39 +22,41 @@ async function revokeAccess(documentId, reason) {
     }
 
     const revokeTime = Math.floor(Date.now() / 1000);
-
     const transactionHash = await revokeAccessOnChain(tokenId, reason);
     logger.info(
       `revokeAccess.js Transaction hash for revocation: ${transactionHash}`
     );
+    if (transactionHash) {
+      logger.debug(`Transaction hash: ${transactionHash}`);
 
-    // emit event for toast notif on frontend
-    eventEmitter.emit("accessChanged", {
-      type: "AccessRevoked",
-      recipient: targetUser,
-      documentId: documentId,
-    });
+      // emit event for toast notif on frontend
+      eventEmitter.emit("accessChanged", {
+        type: "AccessRevoked",
+        recipient: targetUser,
+        documentId: documentId,
+      });
 
-    logger.info(
-      `Event emitted for access change: ${documentId}, ${targetUser}`
-    );
+      logger.info(
+        `Event emitted for access change: ${documentId}, ${targetUser}`
+      );
 
-    await logAction(connection, "revoke", {
-      tokenId: tokenId,
-      revokeTime: revokeTime,
-      transactionHash: transactionHash,
-      reason: reason,
-    });
+      await logAction(connection, "revoke", {
+        tokenId: tokenId,
+        revokeTime: revokeTime,
+        transactionHash: transactionHash,
+        reason: reason,
+      });
 
-    // delete document from user2's shared table
-    const deleteQuery = `DELETE FROM ${process.env.DB_USER2}.${process.env.DB_TABLE_SHARED_DOCS} WHERE DOC_ID = :documentId`;
-    logger.debug(`revokeAccess.js Delete query: ${deleteQuery}`);
-    await connection.execute(deleteQuery, [documentId]);
+      // delete document from user2's shared table
+      const deleteQuery = `DELETE FROM ${process.env.DB_USER2}.${process.env.DB_TABLE_SHARED_DOCS} WHERE DOC_ID = :documentId`;
+      logger.debug(`revokeAccess.js Delete query: ${deleteQuery}`);
+      await connection.execute(deleteQuery, [documentId]);
 
-    await connection.commit();
-    logger.info(
-      `revokeAccess.js Revocation and deletion successful for ${documentId}`
-    );
+      await connection.commit();
+      logger.info(
+        `revokeAccess.js Revocation and deletion successful for ${documentId}`
+      );
+    }
   } catch (error) {
     logger.error(
       `revokeAccess.js Error in executing revokeAccess: ${error.message}`

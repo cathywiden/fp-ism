@@ -49,49 +49,50 @@ async function grantAccess(
       expiryInSeconds
     );
 
-    // emit event for toast notif on frontend
-    eventEmitter.emit("accessChanged", {
-      type: "AccessGranted",
-      recipient: targetUser,
-      documentId: documentId,
-    });
-    logger.info(
-      `Event emitted for access change: ${documentId}, ${targetUser}`
-    );
+    if (transactionHash) {
+      // emit event for toast notif on frontend
+      eventEmitter.emit("accessChanged", {
+        type: "AccessGranted",
+        recipient: targetUser,
+        documentId: documentId,
+      });
+      logger.info(
+        `Event emitted for access change: ${documentId}, ${targetUser}`
+      );
 
+      if (requestInfo && requestInfo.requestTxHash) {
+        logger.debug("Found existing request, updating it.");
+
+        // update the existing request
+        await logAction(connection, "update-grant", {
+          documentId: documentId,
+          tokenId: tokenId,
+          targetUser: targetUser,
+          transactionHash: transactionHash,
+          expiryInSeconds: expiryInSeconds,
+        });
+      } else {
+        logger.debug(
+          "No existing request found with the given criteria. Granting access."
+        );
+
+        // create new grant
+        await logAction(connection, "grant", {
+          documentId: documentId,
+          tokenId: tokenId,
+          targetUser: targetUser,
+          transactionHash: transactionHash,
+          expiryInSeconds: expiryInSeconds,
+        });
+      }
+
+      logger.info(
+        `Document ${documentId} shared with ${targetUser}. Token id: ${tokenId}, Transaction hash: ${transactionHash}`
+      );
+    }
     if (!transactionHash || tokenId === null || tokenId === undefined) {
       throw new Error("Token minting failed.");
     }
-
-    if (requestInfo && requestInfo.requestTxHash) {
-      logger.debug("Found existing request, updating it.");
-
-      // update the existing request
-      await logAction(connection, "update-grant", {
-        documentId: documentId,
-        tokenId: tokenId,
-        targetUser: targetUser,
-        transactionHash: transactionHash,
-        expiryInSeconds: expiryInSeconds,
-      });
-    } else {
-      logger.debug(
-        "No existing request found with the given criteria. Granting access."
-      );
-
-      // create new grant
-      await logAction(connection, "grant", {
-        documentId: documentId,
-        tokenId: tokenId,
-        targetUser: targetUser,
-        transactionHash: transactionHash,
-        expiryInSeconds: expiryInSeconds,
-      });
-    }
-
-    logger.info(
-      `Document ${documentId} shared with ${targetUser}. Token id: ${tokenId}, Transaction hash: ${transactionHash}`
-    );
   } catch (error) {
     logger.error(`Error in granting access: ${error.message}`);
     if (error.sqlMessage) {
