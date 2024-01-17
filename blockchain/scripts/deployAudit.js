@@ -1,5 +1,3 @@
-// blockchain/scripts/deployAudit.js
-
 const hre = require("hardhat");
 
 async function main() {

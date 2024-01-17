@@ -1,5 +1,3 @@
-// server/access/denyRequest.js
-
 require("dotenv").config({ path: "../.env" });
 const { getConnection } = require("../utilities/dbConnector");
 const logger = require("../utilities/logger");

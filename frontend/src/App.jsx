@@ -1,13 +1,11 @@
-// frontend/src/App.jsx
-
 import React, { useState, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
 import DocumentViewer from "./components/DocumentViewer";
 import LoginForm from "./components/LoginForm";
 import Dashboard from "./components/Dashboard";
-import "./App.css";
 import { Toaster } from "react-hot-toast";
 import { getSocket, setupWebhook } from "./api/webhooks";
+import "./App.css";
 
 function App() {
   const [user, setUser] = useState(null);

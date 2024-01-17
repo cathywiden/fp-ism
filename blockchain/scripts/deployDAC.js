@@ -1,5 +1,3 @@
-// blockchain/scripts/deployDAC.js
-
 const hre = require("hardhat");
 
 async function main() {

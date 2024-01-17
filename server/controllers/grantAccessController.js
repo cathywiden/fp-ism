@@ -1,5 +1,3 @@
-// server/controllers/grantAccessController.js
-
 const logger = require("../utilities/logger");
 const { grantAccess } = require("../access/grantAccess");
 

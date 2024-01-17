@@ -1,5 +1,3 @@
-// server/routes/denyAccessRoutes.js
-
 const express = require("express");
 const router = express.Router();
 const { validateToken } = require("../access/tokenValidation");

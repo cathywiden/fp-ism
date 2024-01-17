@@ -1,5 +1,3 @@
-// server/middlewares/tokenService.js
-
 const { generateToken } = require("../utilities/JWTGenerator");
 
 function generateAuthToken(user) {

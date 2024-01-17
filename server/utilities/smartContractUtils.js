@@ -1,5 +1,3 @@
-// server/utils/smartContractUtils.js
-
 require("dotenv").config({ path: "../../.env" });
 const { ethers } = require("ethers");
 const logger = require("./logger");
@@ -172,10 +170,7 @@ async function checkAccessOnChain(userAddress, documentId) {
   );
 
   try {
-    logger.info(`Inside try block: Document ID: ${documentId}`);
-
     const hasAccess = await DAC.hasAccess(userAddress, documentId);
-
     return hasAccess;
   } catch (error) {
     logger.error(

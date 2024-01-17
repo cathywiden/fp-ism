@@ -1,5 +1,3 @@
-// frontend/src/components/LoginForm.jsx
-
 import React, { useState } from "react";
 
 function LoginForm({ onLogin }) {
@@ -16,13 +14,21 @@ function LoginForm({ onLogin }) {
       <div>
         <label>
           Username:
-          <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} />
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
         </label>
       </div>
       <div>
         <label>
           Password:
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </label>
       </div>
       <button type="submit">Login</button>
