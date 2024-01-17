@@ -1,5 +1,3 @@
-// server/controllers/sharedDocsController.js
-
 const logger = require("../utilities/logger");
 const { getAllSharedDocs } = require("../utilities/dbUtils");
 
@@ -24,7 +22,6 @@ async function getSharedDocuments(req, res) {
     }
 
     res.json(sharedDocs);
-    console.log(sharedDocs);
   } catch (error) {
     console.error("Error in /shared-docs endpoint:", error);
     res.status(500).send("Error fetching shared documents");

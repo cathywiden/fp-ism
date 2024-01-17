@@ -1,5 +1,3 @@
-// server/utilities/generateJWTs.js
-
 require("dotenv").config({ path: "../../.env" });
 const { generateToken } = require("./JWTGenerator");
 const logger = require("./logger");

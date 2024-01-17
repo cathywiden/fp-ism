@@ -1,5 +1,3 @@
-// server/authController.js
-
 const authService = require("../middlewares/authService");
 const tokenService = require("../middlewares/tokenService");
 
@@ -11,7 +9,7 @@ function login(req, res) {
     const token = tokenService.generateAuthToken(user);
     res.json({ token });
   } else {
-    res.status(401).send('Invalid credentials');
+    res.status(401).send("Invalid credentials");
   }
 }
 

@@ -1,5 +1,3 @@
-// server/utilities/requestAccess.js
-
 const logger = require("../utilities/logger");
 const eventEmitter = require("../utilities/eventEmitter");
 const { getUserWalletAddress } = require("../utilities/extractWalletAddress");

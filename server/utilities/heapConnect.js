@@ -1,5 +1,3 @@
-// server/utilities/heapConnect.js
-
 const { getConnection } = require("./dbConnector");
 const logger = require("./logger");
 

@@ -1,5 +1,3 @@
-// server/access/grantAccess.js
-
 require("dotenv").config({ path: "../.env" });
 const { getConnection } = require("../utilities/dbConnector");
 const logger = require("../utilities/logger");
@@ -30,10 +28,10 @@ async function grantAccess(
       return; // exit early if doc already shared
     }
 
-    // check if there is an unprocessed request 
+    // check if there is an unprocessed request
     // from the same user, for the same doc
     // would be more reliable to check on-chain,
-    // using checkForExistingrequestOnChain() 
+    // using checkForExistingrequestOnChain()
     const requestInfo = await checkForExistingRequest(
       connection,
       documentId,

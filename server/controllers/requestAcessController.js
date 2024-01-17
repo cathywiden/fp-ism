@@ -1,5 +1,3 @@
-// server/controllers/requestAccessController.js
-
 const logger = require("../utilities/logger");
 const { requestAccess } = require("../access/requestAccess");
 

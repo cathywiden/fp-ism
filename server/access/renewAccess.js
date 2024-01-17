@@ -3,7 +3,7 @@ const logger = require("../utilities/logger");
 const eventEmitter = require("../utilities/eventEmitter");
 const { renewAccessOnChain } = require("../utilities/smartContractUtils");
 const { logAction } = require("../utilities/dbUtils");
-const { getTokenId } = require("../utilities/getTokenId"); 
+const { getTokenId } = require("../utilities/getTokenId");
 
 async function renewAccess(documentId, additionalTimeInSeconds) {
   logger.debug(`Renewing access for documentId ${documentId}`);
@@ -35,8 +35,9 @@ async function renewAccess(documentId, additionalTimeInSeconds) {
       recipient: targetUser,
       documentId: documentId,
     });
-    logger.info(`Event emitted for access change: ${documentId}, ${targetUser}`);
-  
+    logger.info(
+      `Event emitted for access change: ${documentId}, ${targetUser}`
+    );
 
     await logAction(connection, "renew", {
       tokenId: tokenId,

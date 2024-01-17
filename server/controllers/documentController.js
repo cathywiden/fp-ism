@@ -1,9 +1,5 @@
-// server/controllers/documentController.js
-
 const logger = require("../utilities/logger");
-const {
-  getDocumentById,
-} = require("../utilities/dbUtils");
+const { getDocumentById } = require("../utilities/dbUtils");
 const checkDocumentTampering = require("../utilities/checkDocumentTampering");
 
 async function getDocument(req, res) {
@@ -24,7 +20,7 @@ async function getDocument(req, res) {
     const isTampered = await checkDocumentTampering(documentId);
     logger.debug(`isTampered: ${isTampered}`);
 
-    // send a single response with document and tampering status
+    // single response with document and tampering status
     res.json({ document, isTampered });
   } catch (error) {
     logger.error(`Error in route handler: ${error.message}`);

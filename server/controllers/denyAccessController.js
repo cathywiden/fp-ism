@@ -1,5 +1,3 @@
-// server/controllers/denyAccessController.js
-
 const logger = require("../utilities/logger");
 const { denyRequest } = require("../access/denyRequest");
 

@@ -1,5 +1,3 @@
-// server/controllers/renewAccessController.js
-
 const logger = require("../utilities/logger");
 const { renewAccess } = require("../access/renewAccess");
 
@@ -23,12 +21,10 @@ async function renewDocumentAccess(req, res) {
         documentId,
         additionalTimeInSeconds
       );
-      res
-        .status(200)
-        .json({
-          message: "Document access renewed successfully",
-          transactionHash,
-        });
+      res.status(200).json({
+        message: "Document access renewed successfully",
+        transactionHash,
+      });
     } catch (error) {
       logger.error(`Error in renew endpoint: ${error}`);
 

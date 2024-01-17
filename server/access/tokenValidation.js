@@ -1,4 +1,3 @@
-// server/access/tokenValidation.js
 require("dotenv").config({ path: "../../.env" });
 const jwt = require("jsonwebtoken");
 const { checkAccessOnChain } = require("../utilities/smartContractUtils");
