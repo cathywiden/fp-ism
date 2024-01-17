@@ -1,5 +1,6 @@
 const { getConnection } = require("../utilities/dbConnector");
 const logger = require("../utilities/logger");
+const eventEmitter = require("../utilities/eventEmitter");
 const { renewAccessOnChain } = require("../utilities/smartContractUtils");
 const { logAction } = require("../utilities/dbUtils");
 const { getTokenId } = require("../utilities/getTokenId"); 
@@ -12,7 +13,9 @@ async function renewAccess(documentId, additionalTimeInSeconds) {
     connection = await getConnection("user1");
 
     // get tokenId for docId
-    const tokenId = await getTokenId(documentId);
+    const tokenData = await getTokenId(documentId);
+    const tokenId = tokenData.tokenId;
+    const targetUser = tokenData.targetUser;
 
     logger.debug(`Token to renew: ${tokenId}`);
 
@@ -25,6 +28,15 @@ async function renewAccess(documentId, additionalTimeInSeconds) {
     const newExpiryTime = currentTime + additionalTimeInSeconds;
 
     const transactionHash = await renewAccessOnChain(tokenId, newExpiryTime);
+
+    // emit event for toast notif on frontend
+    eventEmitter.emit("accessChanged", {
+      type: "AccessRenewed",
+      recipient: targetUser,
+      documentId: documentId,
+    });
+    logger.info(`Event emitted for access change: ${documentId}, ${targetUser}`);
+  
 
     await logAction(connection, "renew", {
       tokenId: tokenId,

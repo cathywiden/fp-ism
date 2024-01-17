@@ -1,4 +1,5 @@
-// server/smartContractUtils.js
+// server/utils/smartContractUtils.js
+
 require("dotenv").config({ path: "../../.env" });
 const { ethers } = require("ethers");
 const logger = require("./logger");
@@ -226,6 +227,7 @@ async function logTamperingOnChain(documentId, oldHash, newHash) {
 
   //////// newly implemented
   // check if a request is pending
+  // would be more reliable check for an existing request than a DB check that can lag
   async function isRequestPendingOnChain(documentId, requesterAddress) {
     logger.info(
       `Checking if request is pending for document ${documentId} and requester ${requesterAddress}`

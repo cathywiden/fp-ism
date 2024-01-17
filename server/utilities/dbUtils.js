@@ -4,8 +4,9 @@ const logger = require("./logger");
 const { getConnection } = require("./dbConnector");
 const { connectToHeap } = require("./heapConnect");
 require("dotenv").config({ path: "../.env" });
+const { getUserWalletAddress } = require("./extractWalletAddress");
 
-const EXPIRE_DOCUMENTS_INTERVAL = 100000;
+const EXPIRE_DOCUMENTS_INTERVAL = 100000; // run batch job in DB every 100 secs
 
 // query document by document_id
 async function getDocumentById(document_id, userType) {
@@ -233,7 +234,6 @@ async function checkForExistingRequest(connection, documentId, targetUser) {
         `Found Request - Timestamp: ${REQ_TS}, TxHash: ${REQ_TX_HASH}`
       );
 
-      // extracts requestTimestamp and the associated transaction hash if request exists
       return {
         requestTimestamp: REQ_TS,
         requestTxHash: REQ_TX_HASH,
@@ -297,9 +297,10 @@ async function logAction(connection, actionType, details) {
 
     case "deny":
       const denyTime = Math.floor(Date.now() / 1000);
-      query = `INSERT INTO ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} 
-        (DOC_ID, TARGET_USER, DENY_TS, REASON, DENY_TX_HASH) 
-       VALUES (:documentId, :targetUser, :denyTime, :denyReason, :transactionHash)`;
+      query = `UPDATE ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} 
+        SET TARGET_USER = :targetUser, 
+        DENY_TS = :denyTime, REASON = :denyReason, STATUS = 'denied', DENY_TX_HASH = :transactionHash 
+       WHERE DOC_ID = :documentId AND STATUS = 'requested'`;
       queryParams = {
         documentId: details.documentId,
         targetUser: details.targetUser,
@@ -327,7 +328,8 @@ async function logAction(connection, actionType, details) {
                   STATUS = 'granted'
                 WHERE TOKEN_ID = :tokenId`;
       queryParams = {
-        tokenId: details.tokenId,tokenExpiry: details.tokenExpiry,
+        tokenId: details.tokenId,
+        tokenExpiry: details.tokenExpiry,
         transactionHash: details.transactionHash,
         renewTime: currentTime,
       };

@@ -1,23 +1,32 @@
 // frontend/src/App.jsx
 
 import React, { useState, useEffect } from "react";
-import { jwtDecode } from 'jwt-decode';
-import DocumentViewer from './components/DocumentViewer';
+import { jwtDecode } from "jwt-decode";
+import DocumentViewer from "./components/DocumentViewer";
 import LoginForm from "./components/LoginForm";
-import Dashboard from './components/Dashboard';
+import Dashboard from "./components/Dashboard";
 import "./App.css";
+import { Toaster } from "react-hot-toast";
+import { getSocket, setupWebhook } from "./api/webhooks";
 
 function App() {
   const [user, setUser] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(Date.now());
   useEffect(() => {
+    console.log("Component mounted. Setting up webhook.");
+    setupWebhook();
     const savedToken = localStorage.getItem("token");
     if (savedToken) {
       const decodedUser = jwtDecode(savedToken);
       setUser(decodedUser);
+      return () => {
+        const ws = getSocket();
+        if (ws) {
+          ws.close();
+        }
+      };
     }
   }, []);
-  
+
   const login = async (credentials) => {
     const response = await fetch("http://localhost:3000/login", {
       method: "POST",
@@ -40,18 +49,22 @@ function App() {
     localStorage.removeItem("token");
     setUser(null);
   };
-  
-  const renderViewer = user?.role === "Receiver"; 
+
+  const renderViewer = user?.role === "Receiver";
   const renderDashboard = user?.role === "Sharer, Auditor";
 
   return (
     <div className="App">
+      <Toaster />
       {user ? (
         <div>
-          <div className="welcome">
-          Welcome {user.username}!</div>
-          {renderViewer && <DocumentViewer token={localStorage.getItem('token')} />}
-          {renderDashboard && <Dashboard token={localStorage.getItem('token')} lastUpdated={lastUpdated} />}
+          <div className="welcome">Welcome {user.username}!</div>
+          {renderViewer && (
+            <DocumentViewer token={localStorage.getItem("token")} />
+          )}
+          {renderDashboard && (
+            <Dashboard token={localStorage.getItem("token")} />
+          )}
           <div className="logout-container">
             <button onClick={logout}>Logout</button>
           </div>

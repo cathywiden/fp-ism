@@ -115,7 +115,7 @@ function Dashboard({ token, lastUpdated }) {
     }));
 
     // must pass in expiry in seconds
-    const expiryInSeconds = prompt("Enter validity time in seconds:", "36000"); // default ten hours
+    const expiryInSeconds = prompt("Enter validity time in seconds:", "5000"); // default ten hours
     if (!expiryInSeconds) return;
     try {
       const response = await fetch("http://localhost:3000/grant-access", {
@@ -158,25 +158,24 @@ function Dashboard({ token, lastUpdated }) {
       alert("Please enter both Document ID and Target User.");
       return;
     }
-  
-    setGrantStatus("Granting access in progress..."); 
-  
+
+    setGrantStatus("Granting access in progress...");
+
     const expiryTime = directExpiryInSeconds.trim()
       ? parseInt(directExpiryInSeconds, 10)
       : 36000; // default ten hours
-  
-      try {
-        await handleGrant(directDocId, directTargetUser, expiryTime); // wait for handleGrant to complete!
-        setGrantStatus("Access has been granted");
-      } catch (error) {
-        setGrantStatus(`Error granting access: ${error.message}`);
-      }
 
-      setTimeout(() => {
-        setGrantStatus("");
-      }, 2000); // clear success msg
+    try {
+      await handleGrant(directDocId, directTargetUser, expiryTime); // wait for handleGrant to complete!
+      setGrantStatus("Access has been granted");
+    } catch (error) {
+      setGrantStatus(`Error granting access: ${error.message}`);
+    }
+
+    setTimeout(() => {
+      setGrantStatus("");
+    }, 2000); // clear success msg
   };
-  
 
   const handleDeny = async (docId, targetUser, tokenId) => {
     const actionKey = getActionStatusKey(docId, tokenId);
@@ -187,7 +186,7 @@ function Dashboard({ token, lastUpdated }) {
     }));
 
     const reason = prompt("Enter the reason for denial:");
-    if (!reason) return; // must passs in reason
+    if (!reason) return;
 
     try {
       const response = await fetch("http://localhost:3000/deny-access", {
@@ -234,7 +233,7 @@ function Dashboard({ token, lastUpdated }) {
       [actionKey]: "in progress",
     }));
     const reason = prompt("Enter the reason for revocation:");
-    if (!reason) return; // must passs in reason
+    if (!reason) return;
 
     try {
       const response = await fetch("http://localhost:3000/revoke-access", {
@@ -257,7 +256,7 @@ function Dashboard({ token, lastUpdated }) {
         ...prevStatus,
         [actionKey]: "completed",
       }));
-      // wait for half a second to show the checkmark
+      // checkmark for half a sec
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       // reset actionStatus and trigger re-fetch
@@ -296,7 +295,7 @@ function Dashboard({ token, lastUpdated }) {
 
       if (!additionalTimeInSeconds) return;
 
-      // Log the request payload before sending
+      // request payload
       console.log("Request Payload:");
       console.log({
         documentId: docId,
@@ -338,7 +337,6 @@ function Dashboard({ token, lastUpdated }) {
 
   return (
     <div>
-      {/* direct sharing */}
       <div>
         <h2>Direct Sharing</h2>
         <input
@@ -358,10 +356,9 @@ function Dashboard({ token, lastUpdated }) {
         <button onClick={handleDirectGrant} className="grant-button">
           Grant Access
         </button>
-        {grantStatus && <div>{grantStatus}</div>}{" "}
-        {/* display grant status message */}
+        {grantStatus && <div>{grantStatus}</div>}
+        {""}
       </div>
-
       <div className="doc-list">
         <h2>Shared Documents</h2>
         <table>
@@ -373,7 +370,7 @@ function Dashboard({ token, lastUpdated }) {
               <th>Token ID</th>
               <th>Expiry</th>
               <th>Actions</th>
-              <th>Status</th> {/* status indicators column */}
+              <th>Action Status</th>
             </tr>
           </thead>
           <tbody>
@@ -383,7 +380,7 @@ function Dashboard({ token, lastUpdated }) {
                 className={`row-hover-effect ${
                   doc.STATUS === "requested" && hasRevokedHistory(doc.DOC_ID)
                     ? "highlight-row"
-                    : ""
+                    : null
                 }`}
               >
                 <td>{doc.DOC_ID}</td>
@@ -396,7 +393,6 @@ function Dashboard({ token, lastUpdated }) {
                     : "N/A"}
                 </td>
                 <td>
-                  {/* conditional rendering of action buttons */}
                   {doc.STATUS === "requested" && (
                     <>
                       <button
@@ -433,8 +429,6 @@ function Dashboard({ token, lastUpdated }) {
                       Revoke
                     </button>
                   )}
-
-                  {/* no buttons for "revoked" or "denied" status. according to contract logic, a new request can be placed */}
                 </td>
                 <td>{renderStatusIndicator(doc.DOC_ID, doc.TOKEN_ID)}</td>
               </tr>
