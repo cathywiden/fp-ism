@@ -13,11 +13,11 @@ async function getDocumentById(document_id, userType) {
       `getDocumentById called with document_id: ${document_id}, userType: ${userType}`
     );
     connection = await getConnection(userType);
+
     const query = `SELECT DBMS_LOB.SUBSTR(XML, 500, 1) AS XML_SNIPPET FROM ${process.env.DB_TABLE_SHARED_DOCS} WHERE doc_id = :id`;
     logger.debug(`Executing query: ${query}`);
     const result = await connection.execute(query, [document_id]);
 
-    logger.info("Query result:", result);
     return result.rows.length > 0 ? result.rows[0].XML_SNIPPET : null;
   } catch (error) {
     logger.error(`Error in getDocumentById: ${error.message}`);
@@ -184,11 +184,24 @@ async function doesRequestExist(connection, documentId, requester) {
     return "Document data not found";
   } else {
     // check if a request or grant already exists
-    const existingCheck = `SELECT STATUS FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} WHERE DOC_ID = :documentId AND TARGET_USER = :requester`;
+    // select the newest entry in case there had been a DB timeout earlier,
+    // so some entry may have gotten "stuck" in pending status,
+    // but then there had been some action on top that did get logged
+    // IF there is a truly pending status, it will be the newest entry
+    // all else is previous DB errors
+    const existingCheck = `
+  SELECT STATUS 
+  FROM ${process.env.DB_USER1}.${process.env.DB_TABLE_SHARED_DOCS} 
+  WHERE DOC_ID = :documentId AND TARGET_USER = :requester
+  ORDER BY REQ_TS DESC
+  FETCH FIRST ROW ONLY
+`;
     const existingResult = await connection.execute(existingCheck, {
       documentId: documentId,
       requester: requester,
     });
+
+    logger.debug(`Incoming request check result: ${existingResult.rows[0]}`);
 
     if (existingResult.rows.length > 0) {
       const status = existingResult.rows[0].STATUS;

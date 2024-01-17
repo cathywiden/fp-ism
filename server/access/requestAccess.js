@@ -37,19 +37,18 @@ async function requestAccess(documentId, requester) {
           requestTime: requestTime,
           transactionHash: transactionHash,
         });
+
+        // emit event for toast notif on frontend
+        eventEmitter.emit("accessChanged", {
+          type: "AccessRequested",
+          recipient: requester,
+          documentId: documentId,
+        });
+        logger.info(
+          `Event emitted for access change: ${documentId}, ${requester}`
+        );
+        return "Request submitted";
       }
-
-      // emit event for toast notif on frontend
-      eventEmitter.emit("accessChanged", {
-        type: "AccessRequested",
-        recipient: requester,
-        documentId: documentId,
-      });
-      logger.info(
-        `Event emitted for access change: ${documentId}, ${requester}`
-      );
-
-      return "Request submitted";
     } else {
       return duplicateCheck;
     }
