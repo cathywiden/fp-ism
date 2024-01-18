@@ -25,6 +25,7 @@ const logger = require("../server/utilities/logger");
 // access control
 const validateJWT = require("./middlewares/validateJWT");
 const { determineUserRole } = require("./middlewares/roleDetermination");
+const { startEventCapture } = require("./access/captureDocAccessAttempt");
 
 // document tampering
 const {
@@ -80,6 +81,7 @@ async function startServer() {
       setInterval(isTamperedWithInDB, TAMPER_POLLING_INTERVAL);
       setInterval(expireDocuments, EXPIRE_DOCUMENTS_INTERVAL);
       setupWebhookListener();
+      startEventCapture();
     });
   } catch (error) {
     logger.error("Error starting the server:", error);

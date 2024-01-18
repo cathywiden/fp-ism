@@ -151,29 +151,50 @@ function Dashboard({ token, lastUpdated }) {
     }
   };
 
+  // direct grant (without incoming request)
   const handleDirectGrant = async () => {
     if (!directDocId.trim() || !directTargetUser.trim()) {
       alert("Please enter both Document ID and Target User.");
       return;
     }
-
+  
+    // must fill expiry in seconds
+    const expiryInSeconds = prompt("Enter validity time in seconds:", "36000"); // default ten hours
+    if (!expiryInSeconds) return; 
+  
     setGrantStatus("Granting access in progress...");
-
-    const expiryTime = directExpiryInSeconds.trim()
-      ? parseInt(directExpiryInSeconds, 10)
-      : 36000; // default ten hours
-
+  
     try {
-      await handleGrant(directDocId, directTargetUser, expiryTime); // wait for handleGrant to complete!
+      const response = await fetch("http://localhost:3000/grant-access", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          documentId: directDocId,
+          targetUser: directTargetUser,
+          documentHash: "",
+          expiryInSeconds: parseInt(expiryInSeconds, 10),
+        }),
+      });
+  
+      if (!response.ok) {
+        const errorText = await response.text();
+        setGrantStatus(`Error granting access: ${errorText}`);
+        return; 
+      }
+  
       setGrantStatus("Access has been granted");
     } catch (error) {
       setGrantStatus(`Error granting access: ${error.message}`);
     }
-
+  
     setTimeout(() => {
       setGrantStatus("");
     }, 2000); // clear success msg
   };
+  
 
   const handleDeny = async (docId, targetUser, tokenId) => {
     const actionKey = getActionStatusKey(docId, tokenId);

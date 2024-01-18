@@ -53,7 +53,7 @@ function App() {
 
   return (
     <div className="App">
-      <Toaster />
+      <Toaster toastOptions={{duration: 2000}}/>
       {user ? (
         <div>
           <div className="welcome">Welcome {user.username}!</div>

@@ -219,6 +219,20 @@ async function logTamperingOnChain(documentId, oldHash, newHash) {
     );
     return null;
   }
+}
+
+async function listenForDocumentAccessEvents() {
+  DAC.on("DocumentAccessAttempt", (user, documentId, success, timestamp, event) => {
+    logger.warn(`***** Document Access Attempt detected: 
+        User: ${user}, 
+        Document ID: ${documentId}, 
+        Success: ${success}, 
+        Timestamp: ${timestamp},
+        Block Number: ${event.blockNumber} *****`);
+  });
+
+  logger.warn('Listening for DocumentAccessAttempt events...');
+}
 
   //////// newly implemented
   // check if a request is pending
@@ -345,7 +359,7 @@ async function logTamperingOnChain(documentId, oldHash, newHash) {
       throw error;
     }
   }
-}
+
 
 module.exports = {
   mintAccessOnChain,
@@ -356,4 +370,5 @@ module.exports = {
   renewAccessOnChain,
   logTamperingOnChain,
   getRevokedTokensOnChain,
+  listenForDocumentAccessEvents,
 };

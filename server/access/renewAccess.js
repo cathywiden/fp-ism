@@ -27,7 +27,7 @@ async function renewAccess(documentId, additionalTimeInSeconds) {
     const currentTime = Math.floor(Date.now() / 1000);
     const newExpiryTime = currentTime + additionalTimeInSeconds;
 
-    const transactionHash = await renewAccessOnChain(tokenId, newExpiryTime);
+    const transactionHash = await renewAccessOnChain(tokenId, additionalTimeInSeconds);
 
     if (transactionHash) {
       // emit event for toast notif on frontend

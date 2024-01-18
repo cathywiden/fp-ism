@@ -60,7 +60,7 @@ ORDER BY a.DOC_ID, a.TOKEN_ID DESC
       throw new Error("Invalid user type");
     }
 
-    logger.debug(`Executing query: ${query}`);
+    // logger.debug(`Executing query: ${query}`);
     const result = await connection.execute(query);
     return result.rows;
   } catch (error) {
